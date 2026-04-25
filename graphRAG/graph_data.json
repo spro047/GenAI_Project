@@ -1,0 +1,163 @@
+{
+  "nodes": [
+    {
+      "id": 1,
+      "label": "Thrones*"
+    },
+    {
+      "id": 2,
+      "label": "Westeros"
+    },
+    {
+      "id": 3,
+      "label": "Essos"
+    },
+    {
+      "id": 4,
+      "label": "Iron"
+    },
+    {
+      "id": 5,
+      "label": "Throne"
+    },
+    {
+      "id": 6,
+      "label": "The"
+    },
+    {
+      "id": 7,
+      "label": "Stark"
+    },
+    {
+      "id": 8,
+      "label": "Lannister"
+    },
+    {
+      "id": 9,
+      "label": "Targaryen"
+    },
+    {
+      "id": 10,
+      "label": "As"
+    },
+    {
+      "id": 11,
+      "label": "White"
+    },
+    {
+      "id": 12,
+      "label": "Walkers—emerges"
+    },
+    {
+      "id": 13,
+      "label": "North"
+    },
+    {
+      "id": 14,
+      "label": "Key"
+    },
+    {
+      "id": 15,
+      "label": "Daenerys"
+    },
+    {
+      "id": 16,
+      "label": "Targaryen’s"
+    },
+    {
+      "id": 17,
+      "label": "Jon"
+    },
+    {
+      "id": 18,
+      "label": "Snow’s"
+    }
+  ],
+  "edges": [
+    {
+      "source": 1,
+      "target": 2,
+      "label": "related_to"
+    },
+    {
+      "source": 2,
+      "target": 3,
+      "label": "related_to"
+    },
+    {
+      "source": 3,
+      "target": 4,
+      "label": "related_to"
+    },
+    {
+      "source": 4,
+      "target": 5,
+      "label": "related_to"
+    },
+    {
+      "source": 5,
+      "target": 6,
+      "label": "related_to"
+    },
+    {
+      "source": 6,
+      "target": 7,
+      "label": "related_to"
+    },
+    {
+      "source": 7,
+      "target": 8,
+      "label": "related_to"
+    },
+    {
+      "source": 8,
+      "target": 9,
+      "label": "related_to"
+    },
+    {
+      "source": 9,
+      "target": 10,
+      "label": "related_to"
+    },
+    {
+      "source": 10,
+      "target": 11,
+      "label": "related_to"
+    },
+    {
+      "source": 11,
+      "target": 12,
+      "label": "related_to"
+    },
+    {
+      "source": 12,
+      "target": 13,
+      "label": "related_to"
+    },
+    {
+      "source": 13,
+      "target": 14,
+      "label": "related_to"
+    },
+    {
+      "source": 14,
+      "target": 15,
+      "label": "related_to"
+    },
+    {
+      "source": 15,
+      "target": 16,
+      "label": "related_to"
+    },
+    {
+      "source": 16,
+      "target": 17,
+      "label": "related_to"
+    },
+    {
+      "source": 17,
+      "target": 18,
+      "label": "related_to"
+    }
+  ]
+}
