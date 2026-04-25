@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Knowledge Graph Builder</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg:           #0b0e14;
+    --surface:      #1a1f2b;
+    --border:       #2e3545;
+    --text:         #e2e8f0;
+    --text-muted:   #94a3b8;
+    --accent:       #00d2ff;
+
+    --c-person:     #ffd700;
+    --c-org:        #4c8eda;
+    --c-leg:        #f16667;
+    --c-case:       #ff9f00;
+    --c-concept:    #d973d9;
+    --c-gov:        #47cc7a;
+    --c-other:      #8d8f92;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Header ─────────────────────────────────────────────────── */
+  header {
+    padding: 10px 24px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(26, 31, 43, 0.8);
+    backdrop-filter: blur(12px);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-shrink: 0;
+    z-index: 100;
+  }
+
+  header h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .stats {
+    margin-left: auto;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    display: flex;
+    gap: 20px;
+  }
+
+  .stats span { color: #fff; font-weight: 500; }
+
+  /* ── Layout ──────────────────────────────────────────────────── */
+  .layout {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── Sidebar ─────────────────────────────────────────────────── */
+  .sidebar {
+    width: 320px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow-y: auto;
+    box-shadow: 10px 0 30px rgba(0,0,0,0.3);
+    z-index: 50;
+  }
+
+  .sidebar-section {
+    padding: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 12px;
+  }
+
+  /* ── Text Input ─────────────────────────────────────────────── */
+  .input-section {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .input-section textarea {
+    width: 100%;
+    min-height: 120px;
+    background: #0f131a;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px;
+    color: var(--text);
+    resize: none;
+    outline: none;
+    transition: all 0.2s;
+  }
+
+  .input-section textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0, 210, 255, 0.1);
+  }
+
+  .generate-btn {
+    padding: 14px;
+    border-radius: 8px;
+    border: none;
+    background: var(--accent);
+    color: #000;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .generate-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 210, 255, 0.3);
+  }
+
+  /* ── Legend ────────────────────────────────────────────────── */
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+
+  .legend-dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.1);
+  }
+
+  /* ── Canvas ──────────────────────────────────────────────────── */
+  #graph-container {
+    flex: 1;
+    position: relative;
+    background: radial-gradient(circle at center, #1a202c 0%, #0b0e14 100%);
+  }
+
+  /* ── Links & Edges ───────────────────────────────────────────── */
+  .link {
+    stroke: #4a5568;
+    stroke-opacity: 0.4;
+    stroke-width: 1.5px;
+  }
+
+  .edge-label-bg {
+    fill: var(--bg);
+    opacity: 0.8;
+    rx: 4; ry: 4;
+  }
+
+  .edge-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 8px;
+    font-weight: 600;
+    fill: var(--accent);
+    text-anchor: middle;
+    pointer-events: none;
+    text-transform: uppercase;
+  }
+
+  /* ── Nodes ───────────────────────────────────────────────────── */
+  .node circle {
+    stroke: rgba(255,255,255,0.2);
+    stroke-width: 2px;
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.4));
+  }
+
+  .node text {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    fill: #fff;
+    pointer-events: none;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+  }
+
+  #tooltip.visible { opacity: 1; }
+
+  .tt-name {
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 3px;
+    color: var(--text);
+  }
+
+  .tt-type {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+  }
+
+  .tt-desc {
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.5;
+    margin-bottom: 6px;
+  }
+
+  .tt-connections {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    border-top: 1px solid var(--border);
+    padding-top: 6px;
+    margin-top: 4px;
+  }
+
+  .tt-connections span { color: var(--accent); }
+
+  /* ── Canvas Elements ────────────────────────────────────────── */
+  svg { 
+    width: 100%; 
+    height: 100%; 
+    display: block;
+  }
+
+  #tooltip {
+    position: absolute;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 13px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+    max-width: 260px;
+    z-index: 1000;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  }
+
+  /* ── Empty State ─────────────────────────────────────────────── */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 40px;
+  }
+
+  .empty-state-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+  }
+
+  .empty-state-text {
+    font-size: 14px;
+    max-width: 300px;
+    line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Knowledge Graph Builder</h1>
+  <div class="stats">
+    nodes <span id="stat-nodes">—</span> &nbsp;|&nbsp;
+    edges <span id="stat-edges">—</span> &nbsp;|&nbsp;
+    communities <span id="stat-communities">—</span>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- ── Sidebar ─────────────────────────────────────── -->
+  <aside class="sidebar">
+
+    <div class="input-section">
+      <div class="sidebar-label">Input Text</div>
+      <textarea id="input-text" placeholder="Paste your paragraph here to extract entities and relationships..."></textarea>
+      <div id="error-msg" class="error-msg"></div>
+      <button id="generate-btn" class="generate-btn">Generate Graph</button>
+    </div>
+
+    <div class="search-wrap">
+      <input type="search" id="search" placeholder="Search nodes…">
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Entity Types</div>
+      <div id="legend"></div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Controls</div>
+      <div class="controls">
+        <div class="control-row">
+          <div class="control-label">Link distance</div>
+          <input type="range" id="link-distance" min="40" max="300" value="120">
+        </div>
+        <div class="control-row">
+          <div class="control-label">Charge strength</div>
+          <input type="range" id="charge" min="-800" max="-50" value="-300">
+        </div>
+        <div class="btn-row">
+          <button id="btn-reset">Reset zoom</button>
+          <button id="btn-all">Show all</button>
+        </div>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- ── Graph canvas ────────────────────────────────── -->
+  <div id="graph-container">
+    <div id="empty-state" class="empty-state">
+      <div class="empty-state-icon">🔗</div>
+      <div class="empty-state-text">
+        Enter some text in the input box and click "Generate Graph" to visualize entities and relationships.
+      </div>
+    </div>
+    <svg id="graph" style="display: none;">
+      <defs>
+        <marker id="arrow" viewBox="0 -4 10 8" refX="18" refY="0"
+                markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M0,-4L10,0L0,4" fill="#1e3a5f"/>
+        </marker>
+      </defs>
+      <g id="root"></g>
+    </svg>
+    <div id="tooltip"></div>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// DATA — will be populated from API
+// ═══════════════════════════════════════════════════════════════════════════
+let GRAPH_DATA = { nodes: [], links: [], communities: 0 };
+
+// ═══════════════════════════════════════════════════════════════════════════
+// COLOUR MAP
+// ═══════════════════════════════════════════════════════════════════════════
+const COLOR_MAP = {
+  ORGANIZATION: "#4ECDC4",
+  PERSON:       "#FF6B6B",
+  LEGISLATION:  "#60a5fa",
+  LEGAL_CASE:   "#FBBF24",
+  CONCEPT:      "#86efac",
+  GOVERNMENT:   "#c084fc",
+  OTHER:        "#94a3b8",
+};
+
+function nodeColor(type) {
+  return COLOR_MAP[type] || COLOR_MAP.OTHER;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SETUP
+// ═══════════════════════════════════════════════════════════════════════════
+const svg       = d3.select("#graph");
+const root      = d3.select("#root");
+const tooltip   = document.getElementById("tooltip");
+const container = document.getElementById("graph-container");
+const emptyState = document.getElementById("empty-state");
+
+let W = container.clientWidth;
+let H = container.clientHeight;
+
+// Zoom behaviour
+const zoom = d3.zoom()
+  .scaleExtent([0.1, 4])
+  .on("zoom", e => root.attr("transform", e.transform));
+svg.call(zoom);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FORCE SIMULATION
+// ═══════════════════════════════════════════════════════════════════════════
+let simulation = null;
+let nodes = [];
+let links = [];
+
+function initGraph(data) {
+  console.log("initGraph called with data:", data);
+  
+  // Re-measure container size to ensure correct centering
+  W = container.clientWidth;
+  H = container.clientHeight;
+  
+  GRAPH_DATA = data;
+  
+  // Hide empty state, show graph
+  emptyState.style.display = 'none';
+  document.getElementById("graph").style.display = 'block';
+  
+  // Update stats
+  document.getElementById("stat-nodes").textContent = data.nodes.length;
+  document.getElementById("stat-edges").textContent = data.links.length;
+  document.getElementById("stat-communities").textContent = data.communities || '—';
+  
+  // Prepare nodes and links
+  nodes = data.nodes.map(d => ({ ...d }));
+  links = data.links.map(d => ({ ...d }));
+
+  // Initialize random positions for nodes to help visualization
+  nodes.forEach(n => {
+    n.x = W / 2 + (Math.random() - 0.5) * W * 0.8;
+    n.y = H / 2 + (Math.random() - 0.5) * H * 0.8;
+  });
+
+  // Compute degree for node sizing
+  const degreeMap = {};
+  links.forEach(l => {
+    const srcId = typeof l.source === 'object' ? l.source.id : l.source;
+    const tgtId = typeof l.target === 'object' ? l.target.id : l.target;
+    degreeMap[srcId] = (degreeMap[srcId] || 0) + 1;
+    degreeMap[tgtId] = (degreeMap[tgtId] || 0) + 1;
+  });
+  nodes.forEach(n => { n.degree = degreeMap[n.id] || 1; });
+
+  const maxDeg = Math.max(...nodes.map(n => n.degree), 1);
+  const minDeg = Math.min(...nodes.map(n => n.degree), 1);
+  const nodeRadius = d => {
+    const t = (d.degree - minDeg) / (maxDeg - minDeg || 1);
+    return 8 + t * 28;  // 8px → 36px
+  };
+
+  // Stop existing simulation
+  if (simulation) {
+    simulation.stop();
+  }
+
+  simulation = d3.forceSimulation(nodes)
+    .force("link",   d3.forceLink(links).id(d => d.id).distance(120))
+    .force("charge", d3.forceManyBody().strength(-300))
+    .force("center", d3.forceCenter(W / 2, H / 2))
+    .force("collision", d3.forceCollide().radius(d => nodeRadius(d) + 6));
+
+  // Clear previous elements
+  root.selectAll("*").remove();
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // DRAW LINKS
+  // ═══════════════════════════════════════════════════════════════════════════
+  const linkGroup = root.append("g").attr("class", "links");
+  const labelGroup = root.append("g").attr("class", "edge-labels");
+  const nodeGroup  = root.append("g").attr("class", "nodes");
+
+  const link = linkGroup.selectAll("line")
+    .data(links)
+    .join("line")
+    .attr("class", "link")
+    .attr("marker-end", "url(#arrow)");
+
+  // Edge label containers (Background + Text)
+  const edgeLabelContainer = labelGroup.selectAll("g")
+    .data(links)
+    .join("g")
+    .attr("class", "edge-label-container");
+
+  edgeLabelContainer.append("rect")
+    .attr("class", "edge-label-bg")
+    .attr("width", d => (d.label?.length || 0) * 5 + 10)
+    .attr("height", 14)
+    .attr("x", d => -((d.label?.length || 0) * 5 + 10) / 2)
+    .attr("y", -7);
+
+  const edgeLabel = edgeLabelContainer.append("text")
+    .attr("class", "edge-label")
+    .text(d => d.label || "");
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // DRAW NODES
+  // ═══════════════════════════════════════════════════════════════════════════
+  const node = nodeGroup.selectAll("g")
+    .data(nodes)
+    .join("g")
+    .attr("class", "node")
+    .call(d3.drag()
+      .on("start", dragStart)
+      .on("drag",  dragged)
+      .on("end",   dragEnd));
+
+  // Circle
+  node.append("circle")
+    .attr("r", nodeRadius)
+    .attr("fill", d => nodeColor(d.type));
+
+  // Label (Always visible, bold)
+  node.append("text")
+    .attr("dy", d => nodeRadius(d) + 14)
+    .text(d => d.label);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SIMULATION TICK
+  // ═══════════════════════════════════════════════════════════════════════════
+  simulation.on("tick", () => {
+    link
+      .attr("x1", d => d.source.x)
+      .attr("y1", d => d.source.y)
+      .attr("x2", d => d.target.x)
+      .attr("y2", d => d.target.y);
+
+    edgeLabelContainer
+      .attr("transform", d => `translate(${(d.source.x + d.target.x) / 2}, ${(d.source.y + d.target.y) / 2})`);
+
+    node.attr("transform", d => `translate(${d.x},${d.y})`);
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TOOLTIP & HOVER
+  // ═══════════════════════════════════════════════════════════════════════════
+  let selectedNode = null;
+
+  node.on("mouseover", (e, d) => {
+    const connections = links.filter(l =>
+      (typeof l.source === 'object' ? l.source.id : l.source) === d.id ||
+      (typeof l.target === 'object' ? l.target.id : l.target) === d.id
+    ).length;
+
+    tooltip.innerHTML = `
+      <div class="tt-name">${d.label}</div>
+      <div class="tt-type" style="color:${nodeColor(d.type)}">${d.type || 'ENTITY'}</div>
+      ${d.description ? `<div class="tt-desc">${d.description}</div>` : ""}
+      <div class="tt-connections"><span>${connections}</span> connection${connections !== 1 ? "s" : ""}</div>
+    `;
+    tooltip.classList.add("visible");
+    positionTooltip(e);
+  })
+  .on("mousemove", positionTooltip)
+  .on("mouseleave", () => tooltip.classList.remove("visible"))
+  .on("click", (e, d) => {
+    e.stopPropagation();
+    if (selectedNode === d.id) {
+      clearSelection();
+    } else {
+      selectNode(d);
+    }
+  });
+
+  svg.on("click", clearSelection);
+
+  function positionTooltip(e) {
+    const rect = container.getBoundingClientRect();
+    let x = e.clientX - rect.left + 14;
+    let y = e.clientY - rect.top  - 10;
+    if (x + 280 > W) x = e.clientX - rect.left - 280;
+    tooltip.style.left = x + "px";
+    tooltip.style.top  = y + "px";
+  }
+
+  function selectNode(d) {
+    selectedNode = d.id;
+    const connectedIds = new Set([d.id]);
+    links.forEach(l => {
+      const srcId = typeof l.source === 'object' ? l.source.id : l.source;
+      const tgtId = typeof l.target === 'object' ? l.target.id : l.target;
+      if (srcId === d.id) connectedIds.add(tgtId);
+      if (tgtId === d.id) connectedIds.add(srcId);
+    });
+
+    node.classed("selected", n => n.id === d.id);
+    node.classed("dimmed",   n => !connectedIds.has(n.id));
+    link.classed("highlighted", l => {
+      const srcId = typeof l.source === 'object' ? l.source.id : l.source;
+      const tgtId = typeof l.target === 'object' ? l.target.id : l.target;
+      return srcId === d.id || tgtId === d.id;
+    });
+    link.classed("dimmed", l => {
+      const srcId = typeof l.source === 'object' ? l.source.id : l.source;
+      const tgtId = typeof l.target === 'object' ? l.target.id : l.target;
+      return srcId !== d.id && tgtId !== d.id;
+    });
+  }
+
+  function clearSelection() {
+    selectedNode = null;
+    node.classed("selected dimmed", false);
+    link.classed("highlighted dimmed", false);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // DRAG
+  // ═══════════════════════════════════════════════════════════════════════════
+  function dragStart(e, d) {
+    if (!e.active) simulation.alphaTarget(0.3).restart();
+    d.fx = d.x; d.fy = d.y;
+  }
+  function dragged(e, d)   { d.fx = e.x; d.fy = e.y; }
+  function dragEnd(e, d)   {
+    if (!e.active) simulation.alphaTarget(0);
+    d.fx = null; d.fy = null;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LEGEND
+  // ═══════════════════════════════════════════════════════════════════════════
+  const typeCounts = {};
+  nodes.forEach(n => { typeCounts[n.type] = (typeCounts[n.type] || 0) + 1; });
+
+  const hiddenTypes = new Set();
+  const legendEl = document.getElementById("legend");
+  legendEl.innerHTML = '';
+
+  Object.entries(COLOR_MAP).forEach(([type, color]) => {
+    if (!typeCounts[type]) return;
+    const item = document.createElement("div");
+    item.className = "legend-item";
+    item.innerHTML = `
+      <div class="legend-dot" style="background:${color}"></div>
+      <span class="legend-name">${type}</span>
+      <span class="legend-count">${typeCounts[type]}</span>
+    `;
+    item.addEventListener("click", () => {
+      if (hiddenTypes.has(type)) {
+        hiddenTypes.delete(type);
+        item.classList.remove("disabled");
+      } else {
+        hiddenTypes.add(type);
+        item.classList.add("disabled");
+      }
+      applyTypeFilter();
+    });
+    legendEl.appendChild(item);
+  });
+
+  function applyTypeFilter() {
+    node.style("display", d => hiddenTypes.has(d.type) ? "none" : null);
+    link.style("display", d => {
+      const sType = d.source.type;
+      const tType = d.target.type;
+      const sHidden = hiddenTypes.has(sType);
+      const tHidden = hiddenTypes.has(tType);
+      return sHidden || tHidden ? "none" : null;
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SEARCH
+  // ═══════════════════════════════════════════════════════════════════════════
+  document.getElementById("search").addEventListener("input", e => {
+    const q = e.target.value.toLowerCase().trim();
+    if (!q) { clearSelection(); return; }
+    const match = nodes.find(n => n.label.toLowerCase().includes(q));
+    if (match) selectNode(match);
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CONTROLS
+  // ═══════════════════════════════════════════════════════════════════════════
+  document.getElementById("link-distance").addEventListener("input", e => {
+    simulation.force("link").distance(+e.target.value);
+    simulation.alpha(0.3).restart();
+  });
+
+  document.getElementById("charge").addEventListener("input", e => {
+    simulation.force("charge").strength(+e.target.value);
+    simulation.alpha(0.3).restart();
+  });
+
+  document.getElementById("btn-reset").addEventListener("click", () => {
+    svg.transition().duration(500).call(
+      zoom.transform, d3.zoomIdentity.translate(0, 0).scale(1)
+    );
+  });
+
+  document.getElementById("btn-all").addEventListener("click", () => {
+    hiddenTypes.clear();
+    document.querySelectorAll(".legend-item").forEach(el => el.classList.remove("disabled"));
+    applyTypeFilter();
+    clearSelection();
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// RESIZE
+// ═══════════════════════════════════════════════════════════════════════════
+window.addEventListener("resize", () => {
+  W = container.clientWidth;
+  H = container.clientHeight;
+  if (simulation) {
+    simulation.force("center", d3.forceCenter(W / 2, H / 2));
+    simulation.alpha(0.1).restart();
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GENERATE BUTTON - API CALL
+// ═══════════════════════════════════════════════════════════════════════════
+const generateBtn = document.getElementById("generate-btn");
+const inputText = document.getElementById("input-text");
+const errorMsg = document.getElementById("error-msg");
+
+generateBtn.addEventListener("click", async () => {
+  const text = inputText.value.trim();
+  
+  // Validation
+  if (!text) {
+    errorMsg.textContent = "Please enter some text to generate a graph.";
+    errorMsg.classList.add("visible");
+    return;
+  }
+  
+  if (text.length < 20) {
+    errorMsg.textContent = "Please enter at least 20 characters for meaningful results.";
+    errorMsg.classList.add("visible");
+    return;
+  }
+  
+  // Clear error
+  errorMsg.classList.remove("visible");
+  
+  // Show loading state
+  generateBtn.disabled = true;
+  generateBtn.classList.add("loading");
+  generateBtn.textContent = "Generating...";
+  
+  try {
+    const response = await fetch("/generate", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ text })
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Failed to generate graph");
+    }
+    
+    const data = await response.json();
+    console.log("Received graph data:", data);
+    
+    if (!data.nodes || data.nodes.length === 0) {
+      throw new Error("No entities could be extracted from the text. Try a longer paragraph.");
+    }
+    
+    initGraph(data);
+    
+  } catch (err) {
+    errorMsg.textContent = err.message || "An error occurred while generating the graph.";
+    errorMsg.classList.add("visible");
+  } finally {
+    generateBtn.disabled = false;
+    generateBtn.classList.remove("loading");
+    generateBtn.textContent = "Generate Graph";
+  }
+});
+
+// Allow Enter key in textarea to not trigger button (Shift+Enter for new line)
+inputText.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    generateBtn.click();
+  }
+});
+</script>
+</body>
+</html>
