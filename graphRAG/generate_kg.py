@@ -181,27 +181,35 @@ def get_augmented_text(text: str) -> str:
 def call_hf_inference(text: str, model: str, token: str) -> str:
     from huggingface_hub import InferenceClient
     
-    prompt = f"""You are an expert Knowledge Graph Engineer specializing in information extraction and semantic structuring. Your task is to construct a high-density, high-precision Knowledge Graph from the provided text, ensuring maximum completeness, correctness, and consistency. The objective is to extract all meaningful, atomic relationships between entities while maintaining a high level of accuracy and semantic clarity.
-
-Return only a raw JSON array without any markdown, explanation, or additional text. Each entry must strictly follow this schema: {{"subject": "Entity A", "predicate": "RELATIONSHIP_TYPE", "object": "Entity B"}}. Ensure the output is valid JSON with no trailing commas or formatting errors.
-
-All entities must be normalized using the most complete and canonical form available in the text. Resolve all coreferences such as pronouns (“he”, “she”, “it”, “they”) to their correct entities and maintain consistent naming across all triples. Avoid duplication caused by aliases, abbreviations, or partial names.
-
-Predicates must be dynamically derived from the text to capture the precise semantic meaning of the interaction. While relationships like "FOUNDED_BY" or "LOCATED_IN" are common, you should define the most descriptive and accurate predicate based on the specific context of the sentence. Predicates must be written in uppercase and standardized across the document (e.g., use the same predicate for the same type of relationship). Avoid vague predicates like "IS", "HAS", or "RELATED_TO".
-
-Each triple must be atomic and represent exactly one fact. Do not combine multiple relationships into a single triple. Extract relationships exhaustively, including primary facts, secondary details, implicit relationships, and contextual links such as temporal, spatial, organizational, and functional connections.
-
-Avoid duplicate triples and merge semantically equivalent relationships into a single standardized representation. Ensure all extracted facts are grounded in the provided text or are clearly inferable from it. Do not hallucinate or introduce unsupported information. If a relationship is uncertain, omit it.
-
-Preserve temporal and numerical information accurately. Represent dates, quantities, and values explicitly using appropriate predicates such as "FOUNDED_IN", "BORN_ON", or "HAS_VALUE". Internally infer entity types such as Person, Organization, Location, or Event to improve relationship accuracy, but do not include these types in the output unless explicitly mentioned in the text.
-
-If additional knowledge is provided, use it carefully to validate relationships and enhance completeness, but do not introduce external facts that are not strongly supported. Maintain strict output cleanliness and ensure the final response is a valid, well-structured JSON array.
-
-TEXT TO PROCESS:
-{text}
-
-JSON OUTPUT:
-"""
+    prompt = (
+        "You are a precision Knowledge Graph engine. Return ONLY a raw JSON array, no markdown, no explanation.\n\n"
+        "Each item: {\"subject\": \"Entity\", \"predicate\": \"RELATION\", \"object\": \"Entity\"}\n\n"
+        "RULES:\n"
+        "1. Entity names = clean proper nouns only. NEVER put a job title inside an entity name.\n"
+        "   BAD: {\"subject\":\"Sundar Pichai\",\"predicate\":\"WORKS_AT\",\"object\":\"CEO of Google\"}\n"
+        "   GOOD: {\"subject\":\"Google\",\"predicate\":\"CEO\",\"object\":\"Sundar Pichai\"}\n"
+        "2. Predicate = exact role or relationship, NEVER a generic verb:\n"
+        "   Roles   -> CEO, CTO, CFO, FOUNDER, CO_FOUNDER, CHAIRMAN, CHIEF_AI_SCIENTIST\n"
+        "   Creation-> CREATED, DEVELOPED, BUILT, LAUNCHED\n"
+        "   Money   -> INVESTED_IN, ACQUIRED, FUNDED, PARTNERED_WITH\n"
+        "   Location-> HEADQUARTERED_IN, BASED_IN, BORN_IN\n"
+        "   Compete -> COMPETES_WITH\n"
+        "   Power   -> POWERED_BY, RUNS_ON, REPLACED\n"
+        "   Org     -> OWNED_BY, SUBSIDIARY_OF, LEADS\n"
+        "   BANNED  : WORKS_AT, LIVES_AT, IS_A, HAS, IS, RELATED_TO, ASSOCIATED_WITH\n"
+        "3. Direction: Company--CEO-->Person, Person--FOUNDED-->Company, Company--CREATED-->Product\n"
+        "4. Resolve pronouns. One atomic fact per triple. No duplicates.\n\n"
+        "EXAMPLES:\n"
+        "[\n"
+        "  {\"subject\":\"Tesla\",\"predicate\":\"CEO\",\"object\":\"Elon Musk\"},\n"
+        "  {\"subject\":\"Elon Musk\",\"predicate\":\"FOUNDED\",\"object\":\"SpaceX\"},\n"
+        "  {\"subject\":\"Google\",\"predicate\":\"CEO\",\"object\":\"Sundar Pichai\"},\n"
+        "  {\"subject\":\"Google\",\"predicate\":\"CREATED\",\"object\":\"Gemini\"},\n"
+        "  {\"subject\":\"Microsoft\",\"predicate\":\"INVESTED_IN\",\"object\":\"OpenAI\"},\n"
+        "  {\"subject\":\"SpaceX\",\"predicate\":\"HEADQUARTERED_IN\",\"object\":\"Hawthorne\"}\n"
+        "]\n\n"
+        f"TEXT:\n{text}\n\nJSON OUTPUT (array only):"
+    )
     client = InferenceClient(token=token)
     response = client.chat_completion(
         messages=[{"role": "user", "content": prompt}],
@@ -212,22 +220,25 @@ JSON OUTPUT:
 
 
 def parse_triples_from_text(text: str):
-    # Attempt to parse text as JSON
-    try:
-        parsed = json.loads(text)
-        # Expect a list of objects with subject, predicate, object
-        if isinstance(parsed, list):
-            triples = []
-            for t in parsed:
-                if all(k in t for k in ("subject", "predicate", "object")):
-                    triples.append((t["subject"], t["predicate"], t["object"]))
-            if triples:
-                return triples
-    except Exception:
-        pass
-    # Try to extract simple "subject - predicate - object" lines
+    # Strip markdown code fences
+    clean = re.sub(r'```(?:json)?', '', text).strip().rstrip('`').strip()
+    # Find JSON array anywhere in output
+    match = re.search(r'\[.*\]', clean, re.DOTALL)
+    if match:
+        try:
+            parsed = json.loads(match.group(0))
+            if isinstance(parsed, list):
+                triples = []
+                for t in parsed:
+                    if all(k in t for k in ("subject", "predicate", "object")):
+                        triples.append((t["subject"].strip(), t["predicate"].strip(), t["object"].strip()))
+                if triples:
+                    return triples
+        except Exception:
+            pass
+    # Line-based fallback
     triples = []
-    for line in text.splitlines():
+    for line in clean.splitlines():
         line = line.strip()
         if not line:
             continue
@@ -272,70 +283,73 @@ def triples_to_graph(triples, text=""):
             
         return name
 
-    # Entity type detection heuristics (dynamic + fallback)
     def infer_type(entity, text):
-        entity_lower = entity.lower()
-        
-        # 1. Dynamic Type Inference from Context
-        if text:
-            escaped_entity = re.escape(entity)
-            # Patterns: "Entity is a/an Type", "Entity, a/an Type"
-            # We restrict to a/an to avoid catching adjectives like "the young Paul"
-            patterns = [
-                rf"{escaped_entity}(?:\s*,\s*|\s+is\s+|\s+was\s+)(?:a|an)\s+([a-zA-Z\-]+(?:\s+[a-zA-Z\-]+){{0,2}}?)(?=\s+who|\s+that|\s+which|\s+where|\s+when|,|\.|;|:|$)"
-            ]
-            stop_words = {'very', 'much', 'only', 'just', 'new', 'old', 'good', 'bad', 'great', 'small', 'large', 'big', 'main', 'primary', 'secondary', 'first', 'last', 'of', 'for', 'with'}
-            
-            for pattern in patterns:
-                match = re.search(pattern, text, re.IGNORECASE)
-                if match:
-                    phrase = match.group(1).strip()
-                    words = [w for w in phrase.split() if w.lower() not in stop_words]
-                    if words:
-                        dynamic_type = "_".join(words[-2:]).upper()
-                        if 2 < len(dynamic_type) < 30:
-                            return dynamic_type
+        el = entity.lower()
+        words = set(re.findall(r'\w+', el))
 
-        # 2. Fallback Heuristics
-        words_set = set(re.findall(r'\w+', entity_lower))
-        
-        # Person indicators - names typically 1-3 words, may have titles
-        person_titles = {'dr', 'mr', 'mrs', 'miss', 'prof', 'sir', 'king', 'queen', 'prince', 'princess', 'lord', 'lady', 'ceo', 'president', 'founder', 'director', 'chairman', 'chief'}
-        if words_set.intersection(person_titles):
+        # Dynamic inference from context: "Entity is a/an <Type>"
+        if text:
+            pat = rf'{re.escape(entity)}(?:\s*,\s*|\s+is\s+|\s+was\s+)(?:a|an)\s+([a-zA-Z\-]+(?:\s+[a-zA-Z\-]+){{0,2}}?)(?=\s+who|\s+that|\s+which|,|\.|;|:|$)'
+            m = re.search(pat, text, re.IGNORECASE)
+            if m:
+                phrase = m.group(1).strip()
+                sw = {'very','much','only','just','new','old','good','bad','great','small','large','big','main','primary','first','last','of','for','with'}
+                wds = [w for w in phrase.split() if w.lower() not in sw]
+                if wds:
+                    dt = "_".join(wds[-2:]).upper()
+                    if 2 < len(dt) < 30:
+                        return dt
+
+        # Person indicators
+        person_titles = {'dr','mr','mrs','miss','prof','sir','king','queen','prince','princess','lord','lady','ceo','president','founder','director','chairman','chief','scientist','researcher','engineer'}
+        if words & person_titles:
             return "PERSON"
-        
+
+        # AI Model indicators (check before ORGANIZATION)
+        ai_models = {'gpt','gpt-4','gpt-3','chatgpt','gemini','bard','claude','llama','llama3','alphacode','alphastar','alphago','copilot','dall-e','sora','mistral','falcon','bloom','palm'}
+        if words & ai_models or any(m in el for m in ['gpt-', 'llama-', 'claude-']):
+            return "AI_MODEL"
+
+        # Product / Technology indicators
+        product_words = {'gpu','chip','processor','hardware','software','api','platform','framework','tool','library','model','network','system','robot','satellite','rocket','car','vehicle','phone','device'}
+        if words & product_words:
+            return "PRODUCT"
+
         # Organization indicators
-        org_words = {'university', 'company', 'corp', 'inc', 'llc', 'ltd', 'government', 'court', 'office', 'agency', 'bank', 'hospital', 'school', 'college', 'institute', 'foundation', 'association', 'spacex', 'tesla', 'google', 'microsoft', 'apple'}
-        if words_set.intersection(org_words):
+        org_words = {'university','company','corp','inc','llc','ltd','government','court','office','agency','bank','hospital','school','college','institute','foundation','association','lab','laboratory','openai','spacex','tesla','google','microsoft','apple','anthropic','nvidia','meta','amazon','deepmind','hugging'}
+        if words & org_words:
             return "ORGANIZATION"
-        
+
         # Location indicators
-        loc_words = {'city', 'state', 'country', 'island', 'mountain', 'river', 'ocean', 'sea', 'continent', 'africa', 'america', 'europe', 'asia', 'south', 'north', 'east', 'west', 'arrakis', 'dune', 'mars', 'earth', 'london', 'paris', 'tokyo', 'u.s.a.', 'u.k.', 'e.u.'}
-        if words_set.intersection(loc_words) or entity_lower in {'u.s.a.', 'u.k.', 'e.u.', 'usa', 'uk'}:
+        loc_words = {'city','state','country','island','mountain','river','ocean','sea','continent','africa','america','europe','asia','south','north','east','west','mars','earth','london','paris','tokyo','california','washington','seattle','redmond','menlo','hawthorne','santa','san','new','york','boston'}
+        if words & loc_words:
             return "LOCATION"
 
+        # Event indicators
+        event_words = {'war','battle','conference','summit','election','tournament','championship','match','game','competition','award','ceremony','trial','hearing','launch','debut'}
+        if words & event_words:
+            return "EVENT"
+
         # Legislation indicators
-        leg_words = {'act', 'law', 'bill', 'amendment', 'regulation', 'code', 'statute', 'treaty', 'convention', 'protocol'}
-        if words_set.intersection(leg_words):
+        leg_words = {'act','law','bill','amendment','regulation','code','statute','treaty','convention','protocol'}
+        if words & leg_words:
             return "LEGISLATION"
-        
+
         # Government indicators
-        gov_words = {'department', 'ministry', 'bureau', 'council', 'committee', 'court', 'senate', 'congress', 'parliament', 'house', 'fremen', 'empire'}
-        if words_set.intersection(gov_words):
+        gov_words = {'department','ministry','bureau','council','committee','senate','congress','parliament','house','court'}
+        if words & gov_words:
             return "GOVERNMENT"
-        
-        # Legal case indicators
-        case_words = {'v', 'vs', 'versus', 'case', 'ruling', 'judgment', 'decision'}
-        if words_set.intersection(case_words):
-            return "LEGAL_CASE"
-        
-        # Check if it looks like a person's name (2-3 capitalized words)
-        words = entity.split()
-        if 1 <= len(words) <= 3 and all(w[0].isupper() for w in words if w):
-            # Likely a person name if not matching other categories
+
+        # Technology concept
+        tech_words = {'ai','machine','learning','deep','neural','algorithm','data','cloud','computing','blockchain','crypto','quantum'}
+        if words & tech_words:
+            return "TECHNOLOGY"
+
+        # 1-3 capitalized words Ã¢â€ â€™ likely a person
+        ws = entity.split()
+        if 1 <= len(ws) <= 3 and all(w[0].isupper() for w in ws if w):
             return "PERSON"
-        
-        # Default to CONCEPT
+
         return "CONCEPT"
     
     for s_raw, p, o_raw in triples:
@@ -373,154 +387,297 @@ def triples_to_graph(triples, text=""):
 
 
 def fallback_extract(text: str):
-    """Refined extraction logic to avoid poor entities and improve Neo4j-style relationships."""
-    import re
-    
-    # Expanded skip words to avoid "As", "His", "The", etc.
-    skip_words = {
-        'the', 'a', 'an', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by',
-        'from', 'and', 'or', 'but', 'is', 'are', 'was', 'were', 'be', 'been',
-        'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would',
-        'could', 'should', 'may', 'might', 'must', 'shall', 'can', 'this',
-        'that', 'these', 'those', 'it', 'its', 'as', 'if', 'then', 'than',
-        'so', 'because', 'while', 'when', 'where', 'how', 'what', 'which',
-        'who', 'whom', 'whose', 'also', 'more', 'most', 'some', 'any', 'no',
-        'not', 'only', 'just', 'about', 'into', 'over', 'after', 'before',
-        'between', 'through', 'during', 'under', 'above', 'below', 'up',
-        'down', 'out', 'off', 'again', 'further', 'once', 'here', 'there',
-        'all', 'each', 'both', 'few', 'other', 'such', 'only', 'own', 'same',
-        'too', 'very', 'just', 'now', 'said', 'one', 'two', 'first', 'new',
-        'like', 'made', 'make', 'get', 'got', 'come', 'came', 'say', 'see',
-        'know', 'take', 'think', 'want', 'use', 'find', 'give', 'tell', 'try',
-        'call', 'need', 'feel', 'become', 'leave', 'put', 'keep', 'let',
-        'begin', 'seem', 'help', 'show', 'hear', 'play', 'run', 'move', 'live',
-        'believe', 'bring', 'happen', 'write', 'provide', 'sit', 'stand', 'lose',
-        'pay', 'meet', 'include', 'continue', 'set', 'learn', 'change', 'lead',
-        'understand', 'watch', 'follow', 'stop', 'create', 'speak', 'read',
-        'allow', 'add', 'spend', 'grow', 'open', 'walk', 'win', 'offer',
-        'remember', 'love', 'consider', 'appear', 'buy', 'wait', 'serve', 'die',
-        'send', 'expect', 'build', 'stay', 'fall', 'cut', 'reach', 'kill',
-        'remain', 'suggest', 'raise', 'pass', 'sell', 'require', 'report',
-        'decide', 'pull', 'his', 'her', 'their', 'our', 'my', 'your', 'every',
-        'each', 'any', 'some', 'no', 'none', 'neither', 'either', 'he', 'she',
-        'they', 'we', 'you', 'it', 'its', 'shortly', 'while', 'as', 'duke'
-    }
-    
-    def get_entities(s):
-        # Match sequences of capitalized words, but filter out those that start with skip words
-        found = re.findall(r'\b(?:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b', s)
-        results = []
-        for e in found:
-            words = e.split()
-            # If the first word is a common word (like 'As' in 'As Paul'), strip it
-            if words[0].lower() in {'as', 'the', 'a', 'an', 'in', 'at', 'his', 'her'}:
-                if len(words) > 1:
-                    e = " ".join(words[1:])
-                else:
-                    continue
-            
-            if e.lower() not in skip_words and len(e) > 2:
-                results.append(e)
-        return results
+    """
+    Role-based heuristic extractor.
+    Uses strict case-sensitive entity patterns so that lowercase words like
+    'is', 'was', 'which', 'by', 'the' are NEVER captured as entity names.
+    """
+    # Entity: starts with uppercase, each subsequent word also uppercase (no IGNORECASE)
+    E = r'([A-Z][A-Za-z0-9]*(?:[ \-][A-Z][A-Za-z0-9]*)*)'
+
+    LEADING_STRIP = {'by','the','a','an','both','which','that','their','its',
+                     'this','these','those','all','is','was','are','were','named'}
+    TRAILING_STRIP = {'is','was','are','were','be','been','the','a','an','and','or','named'}
+    JUNK = {'which','who','that','what','where','when','how','this','these','those',
+            'both','all','some','any','is','was','are','were','be','been','being',
+            'has','have','had','do','does','did','the','a','an','and','or','but',
+            'for','of','in','on','at','to','by','from','with','it','its','they',
+            'them','their','he','she','him','her','we','us','our','you','i'}
+
+    def clean(name):
+        words = name.strip().split()
+        while words and words[0].lower() in LEADING_STRIP:
+            words = words[1:]
+        while words and words[-1].lower() in TRAILING_STRIP:
+            words = words[:-1]
+        return ' '.join(words)
+
+    def valid(name):
+        if not name or len(name) < 2:
+            return False
+        if not name[0].isupper():
+            return False
+        if name.lower() in JUNK:
+            return False
+        if all(w.lower() in JUNK for w in name.split()):
+            return False
+        return True
+
+    def split_founders(raw):
+        raw = re.sub(r',?\s+and\s+', '|', raw, flags=re.IGNORECASE)
+        raw = re.sub(r',\s*', '|', raw)
+        return [p.strip() for p in raw.split('|') if p.strip()]
 
     triples = []
-    
-    # 1. Neo4j-style Relationship Patterns (Direct extraction)
-    patterns = [
-        (r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+(?:was\s+)?founded\s+by\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)', "FOUNDED_BY"),
-        (r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+(?:is\s+)?headquartered\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)', "HEADQUARTERED_IN"),
-        (r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+is\s+(?:a|an)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)', "IS_A"),
-        (r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+works\s+(?:at|for)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)', "WORKS_AT"),
-        (r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+competes\s+with\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)', "COMPETES_WITH"),
-        (r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+born\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)', "BORN_IN"),
-        (r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+lives\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)', "LIVES_IN"),
-        (r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+role\s+in\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)', "PARTICIPATES_IN"),
-        (r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+follows\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)', "FOLLOWS"),
-        (r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+focusing\s+on\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)', "FOCUSES_ON"),
-    ]
-    
-    for pattern, rel_type in patterns:
-        matches = re.findall(pattern, text)
-        for s, o in matches:
-            triples.append((s.strip(), rel_type, o.strip()))
+    seen = set()
 
-    # 2. Sentence-level Association (Mesh) - Enhanced with basic coreference
-    sentences = re.split(r'[.!?]\s+', text)
-    last_person = None
-    
-    for sent in sentences:
-        # Find all sequences of capitalized words, allowing 'of', 'the' in middle, and consecutive caps
-        full_names = re.findall(r'\b[A-Z][A-Za-z\']+(?:\s+(?:of|the)\s+[A-Z][A-Za-z\']+|\s+[A-Z][A-Za-z\']+)*\b', sent)
-        
-        valid_entities = []
-        for name in full_names:
-            words = name.split()
-            # Strip common starting words if capitalized at beginning of sentence
-            if words[0].lower() in {'the', 'a', 'an', 'in', 'at', 'his', 'her', 'as', 'they', 'shortly', 'while', 'but', 'and', 'or', 'so'}:
-                if len(words) > 1 and words[1][0].isupper():
-                    name = " ".join(words[1:])
-                else:
-                    continue
-            
-            if name.lower() not in skip_words and len(name) > 2:
-                valid_entities.append(name)
-        
-        sent_entities = []
-        seen = set()
-        for e in valid_entities:
-            if e not in seen:
-                seen.add(e)
-                sent_entities.append(e)
-        
-        # Simple Coreference: Replace pronouns with last_person
-        pronouns = re.findall(r'\b(He|She|It|They)\b', sent)
-        if pronouns and last_person:
-            for p in pronouns:
-                if last_person not in sent_entities:
-                    sent_entities.insert(0, last_person)
-        
-        # Update last_person for next sentence
-        for e in sent_entities:
-            # If entity looks like a name (capitalized words), set as last_person
-            if any(title in e.lower() for title in {'mr', 'mrs', 'ms', 'dr', 'prof'}) or len(e.split()) >= 2:
-                last_person = e
-                break
+    def add(s, p, o):
+        s, o = clean(s), clean(o)
+        if not valid(s) or not valid(o) or s.lower() == o.lower():
+            return
+        key = (s.lower(), p, o.lower())
+        if key not in seen:
+            seen.add(key)
+            triples.append((s, p, o))
 
-        if len(sent_entities) >= 2:
-            # Connect the first entity to all others (hub and spoke for the sentence)
-            hub = sent_entities[0]
-            for other in sent_entities[1:]:
-                exists = any((t[0] == hub and t[2] == other) or (t[0] == other and t[2] == hub) for t in triples)
-                if not exists:
-                    # Dynamic Relationship Extraction: Find the text between the two entities
-                    # If they appear in the same sentence, try to extract the middle part
-                    escaped_hub = re.escape(hub)
-                    escaped_other = re.escape(other)
-                    pattern = f"{escaped_hub}(.*?){escaped_other}"
-                    match = re.search(pattern, sent, re.IGNORECASE)
-                    
-                    rel = "ASSOCIATED_WITH"
-                    if match:
-                        mid = match.group(1).strip()
-                        # Remove common filler words and punctuation
-                        mid = re.sub(r'[^\w\s]', '', mid)
-                        mid = re.sub(r'\b(the|a|an|is|are|was|were|has|have|had|been|to|in|at|on|for|with|by|from|and|but|or|their|his|her)\b', '', mid, flags=re.IGNORECASE).strip()
-                        # If we have a verb or meaningful phrase, use it (max 2 words)
-                        if mid and len(mid.split()) <= 2:
-                            rel = mid.upper().replace(' ', '_')
-                        else:
-                            # Fallback to keyword search if mid is too complex
-                            lower_sent = sent.lower()
-                            if re.search(r'\b(founded|created|established|started)\b', lower_sent): rel = "FOUNDED"
-                            elif re.search(r'\b(lives|resides|dwells)\b', lower_sent): rel = "LIVES_IN"
-                            elif re.search(r'\b(works|employed|ceo|founder|director)\b', lower_sent): rel = "WORKS_AT"
-                            elif re.search(r'\b(born|birth)\b', lower_sent): rel = "BORN_IN"
-                            elif re.search(r'\b(leads|heads|manages|controls)\b', lower_sent): rel = "LEADS"
-                            elif re.search(r'\b(located|based|situated)\b', lower_sent): rel = "LOCATED_IN"
-                    
-                    triples.append((hub, rel, other))
-    
+    role_pat = (r'CEO|CTO|CFO|COO|CMO|President|Chairman|Director|'
+                r'Founder|Co-Founder|'
+                r'Chief [A-Z][a-z]+ (?:Officer|Scientist|Architect)')
+
+    # Role: "Person is/serves as the ROLE of Company" -> (Company, ROLE, Person)
+    for m in re.finditer(
+        rf'{E}\s+(?:is|serves\s+as|was|became)\s+(?:the\s+)?({role_pat})\s+(?:of|at|for)\s+{E}',
+        text
+    ):
+        role = re.sub(r'\s+', '_', m.group(2).strip()).upper()
+        add(m.group(3), role, m.group(1))
+
+    # Founded by (handles "by A, B, and C")
+    for m in re.finditer(
+        rf'{E}\s+(?:was\s+)?founded\s+by\s+([A-Z][^.]+?)(?=\.|,\s+both|\s+to\s+|\s+who\s+|$)',
+        text
+    ):
+        company = clean(m.group(1))
+        for founder in split_founders(m.group(2)):
+            f = clean(founder)
+            if valid(f):
+                add(company, 'FOUNDED_BY', f)
+
+    # Leads / Heads
+    for m in re.finditer(rf'{E}\s+(?:leads|heads|manages|directs)\s+{E}', text):
+        add(m.group(1), 'LEADS', m.group(2))
+
+    # Creation
+    for m in re.finditer(
+        rf'{E}\s+(?:created|developed|built|designed|launched|released|introduced)\s+(?:the\s+)?{E}',
+        text
+    ):
+        add(m.group(1), 'CREATED', m.group(2))
+
+    # Powered by
+    for m in re.finditer(rf'{E}\s+is\s+powered\s+by\s+(?:the\s+)?{E}', text):
+        add(m.group(1), 'POWERED_BY', m.group(2))
+
+    # Replaced
+    for m in re.finditer(
+        rf'{E}\s+replaced\s+(?:their\s+earlier\s+model\s+named\s+|their\s+)?{E}',
+        text
+    ):
+        add(m.group(1), 'REPLACED', m.group(2))
+
+    # Invested in
+    for m in re.finditer(rf'{E}\s+invested\s+(?:heavily\s+)?(?:in|into)\s+{E}', text):
+        add(m.group(1), 'INVESTED_IN', m.group(2))
+
+    # Acquired
+    for m in re.finditer(rf'{E}\s+(?:acquired|bought)\s+{E}', text):
+        add(m.group(1), 'ACQUIRED', m.group(2))
+
+    # Partnered
+    for m in re.finditer(rf'{E}\s+partnered\s+with\s+{E}', text):
+        add(m.group(1), 'PARTNERED_WITH', m.group(2))
+
+    # Owned by
+    for m in re.finditer(rf'{E}\s+(?:is\s+)?owned\s+by\s+{E}', text):
+        add(m.group(1), 'OWNED_BY', m.group(2))
+
+    # Owns
+    for m in re.finditer(rf'{E}\s+(?:owns|controls)\s+{E}', text):
+        add(m.group(1), 'OWNS', m.group(2))
+
+    # Headquartered in
+    for m in re.finditer(rf'{E},?\s+(?:is\s+)?headquartered\s+in\s+{E}', text):
+        add(m.group(1), 'HEADQUARTERED_IN', m.group(2))
+
+    # Based in / located in
+    for m in re.finditer(rf'{E}\s+(?:is\s+)?(?:based|located)\s+in\s+{E}', text):
+        add(m.group(1), 'BASED_IN', m.group(2))
+
+    # Born in
+    for m in re.finditer(rf'{E}\s+(?:was\s+)?born\s+in\s+{E}', text):
+        add(m.group(1), 'BORN_IN', m.group(2))
+
+    # Competes with
+    for m in re.finditer(rf'{E}\s+competes\s+(?:directly\s+)?with\s+{E}', text):
+        add(m.group(1), 'COMPETES_WITH', m.group(2))
+
+    # Defeated
+    for m in re.finditer(rf'{E}\s+(?:defeated|beat)\s+{E}', text):
+        add(m.group(1), 'DEFEATED', m.group(2))
+
+    # Previously worked at
+    for m in re.finditer(
+        rf'{E}\s+(?:previously|formerly)\s+worked\s+(?:at|for)\s+{E}',
+        text
+    ):
+        add(m.group(1), 'FORMERLY_AT', m.group(2))
+
+    # Provides X with Y
+    for m in re.finditer(rf'{E}\s+provides\s+\S+\s+with\s+{E}', text):
+        add(m.group(1), 'PROVIDES', m.group(2))
+
+
+    # â”€â”€ Narrative / story patterns â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+    # "X ruled/governs/governed by Y" -> (X, RULED_BY, Y)
+    for m in re.finditer(rf'{E}\s+(?:is\s+a\s+\S+\s+family\s+)?ruled\s+by\s+{E}', text):
+        add(m.group(1), 'RULED_BY', m.group(2))
+
+    # "X is the head/leader/ruler of Y" -> (Y, LEADER, X)  or  "X is the leader of Y"
+    for m in re.finditer(
+        rf'{E}\s+is\s+(?:the\s+)?(head|leader|ruler|chief|commander|lord)\s+of\s+{E}',
+        text
+    ):
+        role = m.group(2).upper()
+        add(m.group(3), role, m.group(1))
+
+    # "X served as the ROLE of Y" -> (Y, ROLE, X)
+    for m in re.finditer(
+        rf'{E}\s+served\s+as\s+(?:the\s+)?([A-Za-z][a-z]+(?:\s+[a-z]+)?)\s+of\s+{E}',
+        text
+    ):
+        role = re.sub(r'\s+', '_', m.group(2).strip()).upper()
+        add(m.group(3), role, m.group(1))
+
+    # "X is the son/daughter/nephew/niece/mother/father of Y" -> (X, SON_OF etc, Y)
+    for m in re.finditer(
+        rf'{E}\s+is\s+(?:the\s+)(son|daughter|nephew|niece|mother|father|brother|sister|cousin|uncle|aunt)\s+of\s+{E}',
+        text, re.IGNORECASE
+    ):
+        rel = m.group(2).upper() + '_OF'
+        add(m.group(1), rel, m.group(3))
+
+    # "X became the companion/ally/advisor of Y"
+    for m in re.finditer(
+        rf'{E}\s+became\s+(?:the\s+)(companion|ally|advisor|consort|apprentice|champion|heir)\s+of\s+{E}',
+        text, re.IGNORECASE
+    ):
+        rel = m.group(2).upper() + '_OF'
+        add(m.group(1), rel, m.group(3))
+
+    # "X is a member of Y"
+    for m in re.finditer(rf'{E}\s+is\s+a\s+member\s+of\s+{E}', text):
+        add(m.group(1), 'MEMBER_OF', m.group(2))
+
+    # "X joined Y"
+    for m in re.finditer(rf'{E}\s+joined\s+{E}', text):
+        add(m.group(1), 'JOINED', m.group(2))
+
+    # "X betrayed Y"
+    for m in re.finditer(rf'{E}\s+betrayed\s+{E}', text):
+        add(m.group(1), 'BETRAYED', m.group(2))
+
+    # "X controls Y" / "X governs Y"
+    for m in re.finditer(rf'{E}\s+(?:controls|governs|commands|rules)\s+{E}', text):
+        add(m.group(1), 'CONTROLS', m.group(2))
+
+    # "X conspired with Y"
+    for m in re.finditer(rf'{E}\s+conspired\s+with\s+{E}', text):
+        add(m.group(1), 'CONSPIRED_WITH', m.group(2))
+
+    # "X produce/produces Y"
+    for m in re.finditer(rf'{E}\s+produces?\s+(?:the\s+)?{E}', text):
+        add(m.group(1), 'PRODUCES', m.group(2))
+
+    # "X is the only source of Y"
+    for m in re.finditer(rf'{E}\s+is\s+the\s+only\s+source\s+of\s+{E}', text):
+        add(m.group(1), 'SOURCE_OF', m.group(2))
+
+    # "X is set on Y" (fictional setting)
+    for m in re.finditer(rf'set\s+on\s+(?:the\s+)?{E}', text):
+        add('Story', 'SET_ON', m.group(1))
+
+    # "X written/authored by Y"
+    for m in re.finditer(rf'{E}\s+(?:was\s+)?written\s+by\s+{E}', text):
+        add(m.group(1), 'WRITTEN_BY', m.group(2))
+
+    # "X is the author of Y"
+    for m in re.finditer(rf'{E}\s+is\s+the\s+author\s+of\s+{E}', text):
+        add(m.group(1), 'AUTHORED', m.group(2))
+
+    # "X became known as Y" (alias)
+    for m in re.finditer(rf'{E}\s+became\s+known\s+as\s+{E}', text):
+        add(m.group(1), 'KNOWN_AS', m.group(2))
+
+    # "X is also known as Y"
+    for m in re.finditer(rf'{E},?\s+also\s+known\s+as\s+{E}', text):
+        add(m.group(1), 'ALSO_KNOWN_AS', m.group(2))
+
+    # "X became Y" (title/role change)
+    for m in re.finditer(
+        rf'{E}\s+became\s+(?:the\s+)?(Emperor|King|Queen|Leader|Champion|Ruler)\s+of\s+{E}',
+        text
+    ):
+        role = m.group(2).upper() + '_OF'
+        add(m.group(1), role, m.group(3))
+
+    # "X ride/rides Y"
+    for m in re.finditer(rf'{E}\s+ride\s+(?:the\s+)?{E}|{E}\s+rides\s+(?:the\s+)?{E}', text):
+        s = m.group(1) or m.group(3)
+        o = m.group(2) or m.group(4)
+        if s and o:
+            add(s, 'RIDES', o)
+
+    # "X is a rival of Y"
+    for m in re.finditer(rf'{E}\s+is\s+a\s+rival\s+of\s+{E}', text):
+        add(m.group(1), 'RIVAL_OF', m.group(2))
+
+    # "X enables Y" / "X enables interstellar travel" etc.
+    for m in re.finditer(rf'{E}\s+enables\s+{E}', text):
+        add(m.group(1), 'ENABLES', m.group(2))
+
+    # "X is the most valuable substance" -> skip (too generic)
+    # "X is prophesied by Y"
+    for m in re.finditer(rf'{E}\s+(?:was\s+)?prophesied\s+by\s+{E}', text):
+        add(m.group(1), 'PROPHESIED_BY', m.group(2))
+
+
+    # "X, heir of Y"
+    for m in re.finditer(rf'{E},\s+(?:the\s+)?heir\s+(?:of|to)\s+{E}', text):
+        add(m.group(1), 'HEIR_OF', m.group(2))
+
+    # "assigned to govern X" -> (Family/Person, GOVERNS, X)
+    for m in re.finditer(rf'{E}.{{1,40}}?assigned\s+to\s+govern\s+{E}', text):
+        add(m.group(1), 'GOVERNS', m.group(2))
+
+    # "escapes into X" / "escapes to X"
+    for m in re.finditer(rf'{E}.{{1,40}}?escapes?\s+(?:into|to)\s+(?:the\s+)?{E}', text):
+        add(m.group(1), 'ESCAPES_TO', m.group(2))
+
+    # "X, in alliance with Y"
+    for m in re.finditer(rf'{E}(?:,|.{{1,40}}?)\s+in\s+alliance\s+with\s+(?:the\s+)?{E}', text):
+        add(m.group(1), 'ALLIED_WITH', m.group(2))
+
+    # "uniting X"
+    for m in re.finditer(rf'{E}.{{1,40}}?uniting\s+(?:the\s+)?{E}', text):
+        add(m.group(1), 'UNITES', m.group(2))
+
+    # "reclaim X"
+    for m in re.finditer(rf'{E}.{{1,40}}?reclaim\s+{E}', text):
+        add(m.group(1), 'RECLAIMS', m.group(2))
+
     return triples
+
 
 
 def generate_graph_from_text(text: str) -> dict:
@@ -745,3 +902,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

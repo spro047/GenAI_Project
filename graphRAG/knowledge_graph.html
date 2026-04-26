@@ -337,11 +337,11 @@
       <div class="controls">
         <div class="control-row">
           <div class="control-label">Link distance</div>
-          <input type="range" id="link-distance" min="40" max="300" value="120">
+          <input type="range" id="link-distance" min="60" max="400" value="180">
         </div>
         <div class="control-row">
           <div class="control-label">Charge strength</div>
-          <input type="range" id="charge" min="-800" max="-50" value="-300">
+          <input type="range" id="charge" min="-1200" max="-50" value="-600">
         </div>
         <div class="btn-row">
           <button id="btn-reset">Reset zoom</button>
@@ -395,10 +395,15 @@ let GRAPH_DATA = { nodes: [], links: [], communities: 0 };
 const COLOR_MAP = {
   ORGANIZATION: "#4ECDC4",
   PERSON:       "#FF6B6B",
+  LOCATION:     "#34d399",
+  PRODUCT:      "#f97316",
+  AI_MODEL:     "#a78bfa",
+  EVENT:        "#fb923c",
   LEGISLATION:  "#60a5fa",
   LEGAL_CASE:   "#FBBF24",
   CONCEPT:      "#86efac",
   GOVERNMENT:   "#c084fc",
+  TECHNOLOGY:   "#e879f9",
   OTHER:        "#94a3b8",
 };
 
@@ -453,10 +458,13 @@ function initGraph(data) {
   nodes = data.nodes.map(d => ({ ...d }));
   links = data.links.map(d => ({ ...d }));
 
-  // Initialize random positions for nodes to help visualization
-  nodes.forEach(n => {
-    n.x = W / 2 + (Math.random() - 0.5) * W * 0.8;
-    n.y = H / 2 + (Math.random() - 0.5) * H * 0.8;
+  // Spread nodes in a wide circle initially to avoid start-up clustering
+  const angleStep = (2 * Math.PI) / nodes.length;
+  const spreadR   = Math.min(W, H) * 0.45;
+  nodes.forEach((n, i) => {
+    const angle = i * angleStep;
+    n.x = W / 2 + spreadR * Math.cos(angle) + (Math.random() - 0.5) * 80;
+    n.y = H / 2 + spreadR * Math.sin(angle) + (Math.random() - 0.5) * 80;
   });
 
   // Compute degree for node sizing
@@ -481,11 +489,15 @@ function initGraph(data) {
     simulation.stop();
   }
 
+  const linkDist = +document.getElementById("link-distance").value || 180;
+  const chargeSt = +document.getElementById("charge").value || -600;
+
   simulation = d3.forceSimulation(nodes)
-    .force("link",   d3.forceLink(links).id(d => d.id).distance(120))
-    .force("charge", d3.forceManyBody().strength(-300))
-    .force("center", d3.forceCenter(W / 2, H / 2))
-    .force("collision", d3.forceCollide().radius(d => nodeRadius(d) + 6));
+    .force("link",      d3.forceLink(links).id(d => d.id).distance(linkDist).strength(0.4))
+    .force("charge",    d3.forceManyBody().strength(chargeSt).distanceMax(600))
+    .force("center",    d3.forceCenter(W / 2, H / 2).strength(0.04))
+    .force("collision", d3.forceCollide().radius(d => nodeRadius(d) + 12))
+    .alphaDecay(0.015);
 
   // Clear previous elements
   root.selectAll("*").remove();
