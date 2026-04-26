@@ -2,162 +2,293 @@
   "nodes": [
     {
       "id": 1,
-      "label": "Thrones*"
+      "label": "Dune",
+      "type": "LOCATION",
+      "description": "A location mentioned in the text."
     },
     {
       "id": 2,
-      "label": "Westeros"
+      "label": "Frank Herbert",
+      "type": "PERSON",
+      "description": "A person mentioned in the text."
     },
     {
       "id": 3,
-      "label": "Essos"
+      "label": "Paul Atreides",
+      "type": "PERSON",
+      "description": "A person mentioned in the text."
     },
     {
       "id": 4,
-      "label": "Iron"
+      "label": "Arrakis",
+      "type": "LOCATION",
+      "description": "A location mentioned in the text."
     },
     {
       "id": 5,
-      "label": "Throne"
+      "label": "Duke Leto Atreides",
+      "type": "PERSON",
+      "description": "A person mentioned in the text."
     },
     {
       "id": 6,
-      "label": "The"
+      "label": "Paul's",
+      "type": "PERSON",
+      "description": "A person mentioned in the text."
     },
     {
       "id": 7,
-      "label": "Stark"
+      "label": "Padishah Emperor Shaddam IV",
+      "type": "CONCEPT",
+      "description": "A concept mentioned in the text."
     },
     {
       "id": 8,
-      "label": "Lannister"
+      "label": "Caladan",
+      "type": "PERSON",
+      "description": "A person mentioned in the text."
     },
     {
       "id": 9,
-      "label": "Targaryen"
+      "label": "Bene Gesserit",
+      "type": "PERSON",
+      "description": "A person mentioned in the text."
     },
     {
       "id": 10,
-      "label": "As"
+      "label": "Lady Jessica",
+      "type": "PERSON",
+      "description": "A person mentioned in the text."
     },
     {
       "id": 11,
-      "label": "White"
+      "label": "Kwisatz Haderach",
+      "type": "MESSIANIC_FIGURE",
+      "description": "A messianic figure mentioned in the text."
     },
     {
       "id": 12,
-      "label": "Walkers—emerges"
+      "label": "House Atreides",
+      "type": "GOVERNMENT",
+      "description": "A government mentioned in the text."
     },
     {
       "id": 13,
-      "label": "North"
+      "label": "Wellington Yueh",
+      "type": "PERSON",
+      "description": "A person mentioned in the text."
     },
     {
       "id": 14,
-      "label": "Key"
+      "label": "House Harkonnen",
+      "type": "GOVERNMENT",
+      "description": "A government mentioned in the text."
     },
     {
       "id": 15,
-      "label": "Daenerys"
+      "label": "Emperor's",
+      "type": "PERSON",
+      "description": "A person mentioned in the text."
     },
     {
       "id": 16,
-      "label": "Targaryen’s"
+      "label": "Sardaukar",
+      "type": "PERSON",
+      "description": "A person mentioned in the text."
     },
     {
       "id": 17,
-      "label": "Jon"
+      "label": "Fremen",
+      "type": "GOVERNMENT",
+      "description": "A government mentioned in the text."
     },
     {
       "id": 18,
-      "label": "Snow’s"
+      "label": "Muad'Dib",
+      "type": "PERSON",
+      "description": "A person mentioned in the text."
+    },
+    {
+      "id": 19,
+      "label": "Harkonnens",
+      "type": "PERSON",
+      "description": "A person mentioned in the text."
     }
   ],
   "edges": [
     {
       "source": 1,
       "target": 2,
-      "label": "related_to"
+      "label": "ASSOCIATED_WITH",
+      "description": "Dune ASSOCIATED_WITH Frank Herbert"
     },
     {
       "source": 2,
       "target": 3,
-      "label": "related_to"
+      "label": "ASSOCIATED_WITH",
+      "description": "Frank Herbert ASSOCIATED_WITH Paul Atreides"
     },
     {
-      "source": 3,
+      "source": 2,
       "target": 4,
-      "label": "related_to"
-    },
-    {
-      "source": 4,
-      "target": 5,
-      "label": "related_to"
+      "label": "ASSOCIATED_WITH",
+      "description": "Frank Herbert ASSOCIATED_WITH Arrakis"
     },
     {
       "source": 5,
       "target": 6,
-      "label": "related_to"
+      "label": "ASSOCIATED_WITH",
+      "description": "Duke Leto Atreides ASSOCIATED_WITH Paul's"
     },
     {
-      "source": 6,
+      "source": 5,
       "target": 7,
-      "label": "related_to"
+      "label": "ASSOCIATED_WITH",
+      "description": "Duke Leto Atreides ASSOCIATED_WITH Padishah Emperor Shaddam IV"
     },
     {
-      "source": 7,
+      "source": 5,
       "target": 8,
-      "label": "related_to"
+      "label": "ASSOCIATED_WITH",
+      "description": "Duke Leto Atreides ASSOCIATED_WITH Caladan"
     },
     {
-      "source": 8,
+      "source": 5,
+      "target": 4,
+      "label": "ASSOCIATED_WITH",
+      "description": "Duke Leto Atreides ASSOCIATED_WITH Arrakis"
+    },
+    {
+      "source": 5,
+      "target": 7,
+      "label": "ASSOCIATED_WITH",
+      "description": "Duke Leto Atreides ASSOCIATED_WITH Padishah Emperor Shaddam IV"
+    },
+    {
+      "source": 5,
       "target": 9,
-      "label": "related_to"
+      "label": "ASSOCIATED_WITH",
+      "description": "Duke Leto Atreides ASSOCIATED_WITH Bene Gesserit"
     },
     {
-      "source": 9,
+      "source": 5,
       "target": 10,
-      "label": "related_to"
+      "label": "ASSOCIATED_WITH",
+      "description": "Duke Leto Atreides ASSOCIATED_WITH Lady Jessica"
+    },
+    {
+      "source": 5,
+      "target": 3,
+      "label": "ASSOCIATED_WITH",
+      "description": "Duke Leto Atreides ASSOCIATED_WITH Paul Atreides"
+    },
+    {
+      "source": 10,
+      "target": 9,
+      "label": "INSTRUCTED",
+      "description": "Lady Jessica INSTRUCTED Bene Gesserit"
+    },
+    {
+      "source": 10,
+      "target": 5,
+      "label": "ASSOCIATED_WITH",
+      "description": "Lady Jessica ASSOCIATED_WITH Duke Leto Atreides"
+    },
+    {
+      "source": 10,
+      "target": 3,
+      "label": "ASSOCIATED_WITH",
+      "description": "Lady Jessica ASSOCIATED_WITH Paul Atreides"
     },
     {
       "source": 10,
       "target": 11,
-      "label": "related_to"
+      "label": "ASSOCIATED_WITH",
+      "description": "Lady Jessica ASSOCIATED_WITH Kwisatz Haderach"
     },
     {
-      "source": 11,
+      "source": 4,
       "target": 12,
-      "label": "related_to"
+      "label": "ASSOCIATED_WITH",
+      "description": "Arrakis ASSOCIATED_WITH House Atreides"
     },
     {
-      "source": 12,
+      "source": 4,
       "target": 13,
-      "label": "related_to"
+      "label": "ASSOCIATED_WITH",
+      "description": "Arrakis ASSOCIATED_WITH Wellington Yueh"
     },
     {
-      "source": 13,
+      "source": 4,
       "target": 14,
-      "label": "related_to"
+      "label": "ASSOCIATED_WITH",
+      "description": "Arrakis ASSOCIATED_WITH House Harkonnen"
     },
     {
-      "source": 14,
+      "source": 4,
       "target": 15,
-      "label": "related_to"
+      "label": "ASSOCIATED_WITH",
+      "description": "Arrakis ASSOCIATED_WITH Emperor's"
     },
     {
-      "source": 15,
+      "source": 4,
       "target": 16,
-      "label": "related_to"
+      "label": "ASSOCIATED_WITH",
+      "description": "Arrakis ASSOCIATED_WITH Sardaukar"
     },
     {
-      "source": 16,
+      "source": 5,
+      "target": 3,
+      "label": "KILLED",
+      "description": "Duke Leto Atreides KILLED Paul Atreides"
+    },
+    {
+      "source": 5,
+      "target": 10,
+      "label": "KILLED__PAUL",
+      "description": "Duke Leto Atreides KILLED__PAUL Lady Jessica"
+    },
+    {
+      "source": 5,
       "target": 17,
-      "label": "related_to"
+      "label": "ASSOCIATED_WITH",
+      "description": "Duke Leto Atreides ASSOCIATED_WITH Fremen"
     },
     {
-      "source": 17,
+      "source": 5,
+      "target": 4,
+      "label": "ASSOCIATED_WITH",
+      "description": "Duke Leto Atreides ASSOCIATED_WITH Arrakis"
+    },
+    {
+      "source": 3,
+      "target": 17,
+      "label": "ADOPTS",
+      "description": "Paul Atreides ADOPTS Fremen"
+    },
+    {
+      "source": 3,
       "target": 18,
-      "label": "related_to"
+      "label": "ASSOCIATED_WITH",
+      "description": "Paul Atreides ASSOCIATED_WITH Muad'Dib"
+    },
+    {
+      "source": 3,
+      "target": 9,
+      "label": "ASSOCIATED_WITH",
+      "description": "Paul Atreides ASSOCIATED_WITH Bene Gesserit"
+    },
+    {
+      "source": 9,
+      "target": 19,
+      "label": "ASSOCIATED_WITH",
+      "description": "Bene Gesserit ASSOCIATED_WITH Harkonnens"
+    },
+    {
+      "source": 9,
+      "target": 7,
+      "label": "ASSOCIATED_WITH",
+      "description": "Bene Gesserit ASSOCIATED_WITH Padishah Emperor Shaddam IV"
     }
   ]
 }

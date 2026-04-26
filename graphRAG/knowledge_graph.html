@@ -305,6 +305,10 @@
     edges <span id="stat-edges">—</span> &nbsp;|&nbsp;
     communities <span id="stat-communities">—</span>
   </div>
+  <div class="metadata-stats" style="margin-top: 8px; font-size: 12px; color: var(--text-muted); font-family: 'IBM Plex Mono', monospace;">
+    Method: <span id="stat-method" style="color: var(--accent);">—</span> &nbsp;|&nbsp;
+    Search Augmented: <span id="stat-search" style="color: var(--accent);">—</span>
+  </div>
 </header>
 
 <div class="layout">
@@ -343,6 +347,15 @@
           <button id="btn-reset">Reset zoom</button>
           <button id="btn-all">Show all</button>
         </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Query System</div>
+      <div class="query-section">
+        <input type="text" id="query-input" placeholder="Ask a question (e.g. Who leads Fremen?)" style="width: 100%; padding: 8px; border-radius: 4px; background: #0f131a; border: 1px solid var(--border); color: var(--text);">
+        <button id="query-btn" class="generate-btn" style="background: var(--c-case); color: #000; margin-top: 10px; width: 100%;">Ask Graph</button>
+        <div id="query-answer" style="margin-top: 15px; font-size: 13px; color: var(--accent); font-style: italic; display: none;"></div>
       </div>
     </div>
 
@@ -774,6 +787,10 @@ generateBtn.addEventListener("click", async () => {
       throw new Error("No entities could be extracted from the text. Try a longer paragraph.");
     }
     
+    // Update metadata indicators
+    document.getElementById("stat-method").textContent = data.extraction_method || "Unknown";
+    document.getElementById("stat-search").textContent = data.search_augmented ? "Yes" : "No";
+    
     initGraph(data);
     
   } catch (err) {
@@ -792,6 +809,51 @@ inputText.addEventListener("keydown", (e) => {
     e.preventDefault();
     generateBtn.click();
   }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// QUERY SYSTEM
+// ═══════════════════════════════════════════════════════════════════════════
+const queryBtn = document.getElementById("query-btn");
+const queryInput = document.getElementById("query-input");
+const queryAnswer = document.getElementById("query-answer");
+
+queryBtn.addEventListener("click", async () => {
+  const q = queryInput.value.trim();
+  if (!q) return;
+  
+  if (GRAPH_DATA.nodes.length === 0) {
+    queryAnswer.textContent = "Please generate a graph first.";
+    queryAnswer.style.display = "block";
+    return;
+  }
+  
+  queryBtn.disabled = true;
+  queryAnswer.textContent = "Searching...";
+  queryAnswer.style.display = "block";
+  
+  try {
+    const response = await fetch("/query", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        query: q,
+        nodes: nodes, // Use the simulation nodes which have IDs
+        links: links
+      })
+    });
+    
+    const data = await response.json();
+    queryAnswer.textContent = data.answer || "No answer found.";
+  } catch (err) {
+    queryAnswer.textContent = "Error querying graph.";
+  } finally {
+    queryBtn.disabled = false;
+  }
+});
+
+queryInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") queryBtn.click();
 });
 </script>
 </body>

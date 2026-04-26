@@ -1,0 +1,9 @@
+OpenAI was founded by Sam Altman, Ilya Sutskever, and Greg Brockman. OpenAI created ChatGPT, which is powered by the GPT-4 architecture. Microsoft invested billions of dollars into OpenAI to secure an exclusive partnership. Microsoft is headquartered in Redmond, Washington. Satya Nadella serves as the CEO of Microsoft. 
+
+Google competes directly with Microsoft and OpenAI. Sundar Pichai is the CEO of Google, which is headquartered in Mountain View, California. Google created the Gemini AI model, which replaced their earlier model named Bard. Demis Hassabis leads Google DeepMind, the artificial intelligence research lab owned by Google. Google DeepMind created AlphaGo, which famously defeated Lee Sedol in the game of Go.
+
+Anthropic is another major AI research company. Anthropic was founded by Dario Amodei and Daniela Amodei, both of whom previously worked at OpenAI. Anthropic developed the Claude 3 model family. Amazon invested heavily in Anthropic and provides them with AWS cloud infrastructure. Amazon is headquartered in Seattle, Washington, and Andy Jassy is the CEO of Amazon.
+
+Meta, formerly known as Facebook, is heavily involved in open-source AI. Mark Zuckerberg is the CEO of Meta. Meta developed the Llama 3 model, which is available for public use. Yann LeCun is the Chief AI Scientist at Meta and is a pioneer in deep learning. Meta is headquartered in Menlo Park, California. 
+
+Nvidia is the primary hardware provider for all of these AI models. Jensen Huang is the CEO of Nvidia, which is headquartered in Santa Clara, California. Nvidia designs the H100 GPU, which is the most sought-after chip for training massive neural networks. Microsoft, Google, Meta, and Amazon all purchase massive quantities of H100 GPUs from Nvidia.

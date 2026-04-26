@@ -44,6 +44,26 @@ def generate():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/query', methods=['POST'])
+def query():
+    """
+    Query the current graph data.
+    Expected JSON body: { "query": "question?", "nodes": [...], "links": [...] }
+    """
+    from generate_kg import query_graph
+    data = request.get_json()
+    
+    if not data or 'query' not in data or 'nodes' not in data or 'links' not in data:
+        return jsonify({"error": "Missing required fields"}), 400
+    
+    q = data['query']
+    nodes = data['nodes']
+    links = data['links']
+    
+    answer = query_graph(q, nodes, links)
+    return jsonify({"answer": answer})
+
+
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
     print(f"Starting Knowledge Graph Builder on http://localhost:{port}")
