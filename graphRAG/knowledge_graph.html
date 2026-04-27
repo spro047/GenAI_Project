@@ -317,7 +317,8 @@
   <aside class="sidebar">
 
     <div class="input-section">
-      <div class="sidebar-label">Input Text</div>
+      <div class="sidebar-label">Input Text or Upload .txt</div>
+      <input type="file" id="file-upload" accept=".txt" style="font-size: 11px; color: var(--text-muted); background: #0f131a; padding: 8px; border: 1px dashed var(--border); border-radius: 6px; cursor: pointer; font-family: 'IBM Plex Sans', sans-serif;">
       <textarea id="input-text" placeholder="Paste your paragraph here to extract entities and relationships..."></textarea>
       <div id="error-msg" class="error-msg"></div>
       <button id="generate-btn" class="generate-btn">Generate Graph</button>
@@ -752,7 +753,21 @@ window.addEventListener("resize", () => {
 // ═══════════════════════════════════════════════════════════════════════════
 const generateBtn = document.getElementById("generate-btn");
 const inputText = document.getElementById("input-text");
+const fileUpload = document.getElementById("file-upload");
 const errorMsg = document.getElementById("error-msg");
+
+fileUpload.addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    inputText.value = event.target.result;
+    // Automatically trigger generation
+    generateBtn.click();
+  };
+  reader.readAsText(file);
+});
 
 generateBtn.addEventListener("click", async () => {
   const text = inputText.value.trim();
