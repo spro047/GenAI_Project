@@ -677,9 +677,24 @@ function performSearch() {
   
   // Filter by hidden types to ensure we only search visible nodes
   searchFeedback.style.display = "none";
-  const match = nodes.find(n => 
-    !hiddenTypes.has(n.type) && n.label.toLowerCase().includes(q)
-  );
+
+  let exactMatch = null;
+  let partialMatch = null;
+
+  for (let i = 0; i < nodes.length; i++) {
+    const n = nodes[i];
+    if (hiddenTypes.has(n.type)) continue;
+
+    const lowerLabel = n.label.toLowerCase();
+    if (lowerLabel === q) {
+      exactMatch = n;
+      break; // Found exact match, stop searching
+    } else if (!partialMatch && lowerLabel.includes(q)) {
+      partialMatch = n;
+    }
+  }
+
+  const match = exactMatch || partialMatch;
 
   if (match) {
     selectNode(match);
