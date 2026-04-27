@@ -257,11 +257,30 @@ def triples_to_graph(triples, text=""):
     nodes = {}
     edges = []
     
+    # 1. Alias Mapping
+    alias_map = {
+        "belly": "Isabel Conklin",
+        "isabel": "Isabel Conklin"
+    } 
+    
+    alias_predicates = {'KNOWN_AS', 'ALSO_KNOWN_AS', 'ALIAS'}
+    for s, p, o in triples:
+        if p.upper() in alias_predicates:
+            alias_map[s.strip().lower()] = o.strip()
+
+    def resolve_alias(name):
+        return alias_map.get(name.lower(), name)
+
     # Entity merging cache
     _merged_entities = {}
 
     def normalize_entity(name):
         name = name.strip()
+        
+        # Resolve aliases first
+        canonical = resolve_alias(name)
+        if canonical != name:
+            return canonical
         
         # Merge fragments into full names (e.g. "Musk" -> "Elon Musk")
         for full_name in _merged_entities:
@@ -286,19 +305,6 @@ def triples_to_graph(triples, text=""):
     def infer_type(entity, text):
         el = entity.lower()
         words = set(re.findall(r'\w+', el))
-
-        # Dynamic inference from context: "Entity is a/an <Type>"
-        if text:
-            pat = rf'{re.escape(entity)}(?:\s*,\s*|\s+is\s+|\s+was\s+)(?:a|an)\s+([a-zA-Z\-]+(?:\s+[a-zA-Z\-]+){{0,2}}?)(?=\s+who|\s+that|\s+which|,|\.|;|:|$)'
-            m = re.search(pat, text, re.IGNORECASE)
-            if m:
-                phrase = m.group(1).strip()
-                sw = {'very','much','only','just','new','old','good','bad','great','small','large','big','main','primary','first','last','of','for','with'}
-                wds = [w for w in phrase.split() if w.lower() not in sw]
-                if wds:
-                    dt = "_".join(wds[-2:]).upper()
-                    if 2 < len(dt) < 30:
-                        return dt
 
         # Person indicators
         person_titles = {'dr','mr','mrs','miss','prof','sir','king','queen','prince','princess','lord','lady','ceo','president','founder','director','chairman','chief','scientist','researcher','engineer'}
@@ -352,9 +358,19 @@ def triples_to_graph(triples, text=""):
 
         return "CONCEPT"
     
-    for s_raw, p, o_raw in triples:
+    for s_raw, p_raw, o_raw in triples:
+        p = p_raw.upper()
+        if p in alias_predicates:
+            # Skip raw alias edges so they don't appear in the graph
+            continue
+            
         s = normalize_entity(s_raw)
         o = normalize_entity(o_raw)
+        
+        if s == o:
+            # Do NOT create relationships between aliases of the same entity
+            continue
+            
         # Add source node
         if s not in nodes:
             node_type = infer_type(s, text)
@@ -362,7 +378,8 @@ def triples_to_graph(triples, text=""):
                 "id": len(nodes) + 1,
                 "label": s,
                 "type": node_type,
-                "description": f"A {node_type.replace('_', ' ').lower()} mentioned in the text."
+                "description": f"A {node_type.replace('_', ' ').lower()} mentioned in the text.",
+                "aliases": []
             }
         
         # Add target node
@@ -372,15 +389,32 @@ def triples_to_graph(triples, text=""):
                 "id": len(nodes) + 1,
                 "label": o,
                 "type": node_type,
-                "description": f"A {node_type.replace('_', ' ').lower()} mentioned in the text."
+                "description": f"A {node_type.replace('_', ' ').lower()} mentioned in the text.",
+                "aliases": []
             }
+            
+        # Record aliases if raw name differs from canonical
+        s_alias = s_raw.strip()
+        if s_alias != s and s_alias not in nodes[s]["aliases"]:
+            nodes[s]["aliases"].append(s_alias)
+            
+        o_alias = o_raw.strip()
+        if o_alias != o and o_alias not in nodes[o]["aliases"]:
+            nodes[o]["aliases"].append(o_alias)
         
-        # Add edge
+        # Deduplicate exactly identical relationships before adding
+        s_id = nodes[s]["id"]
+        o_id = nodes[o]["id"]
+        
+        is_dup = any(e for e in edges if e["source"] == s_id and e["target"] == o_id and e["label"] == str(p_raw))
+        if is_dup:
+            continue
+            
         edges.append({
-            "source": nodes[s]["id"],
-            "target": nodes[o]["id"],
-            "label": p,
-            "description": f"{s} {p} {o}"
+            "source": s_id,
+            "target": o_id,
+            "label": str(p_raw),
+            "description": f"{s} {p_raw} {o}"
         })
     
     return {"nodes": list(nodes.values()), "edges": edges}
@@ -675,6 +709,38 @@ def fallback_extract(text: str):
     # "reclaim X"
     for m in re.finditer(rf'{E}.{{1,40}}?reclaim\s+{E}', text):
         add(m.group(1), 'RECLAIMS', m.group(2))
+
+    # === GENERIC FALLBACK FOR ARBITRARY TEXT ===
+    # If standard rules didn't catch much, do a naive sweep for capitalized entities
+    if len(triples) < 5:
+        for s in re.split(r'[.!?\n]', text):
+            s = s.strip()
+            if not s: continue
+            cap_phrases = re.findall(E, s)
+            # Filter phrases
+            cap_phrases = [p for p in cap_phrases if len(p.strip()) > 2 and p.lower() not in JUNK and p.lower() not in LEADING_STRIP]
+            # Deduplicate locally while maintaining order
+            seen_p = set()
+            unique_phrases = []
+            for p in cap_phrases:
+                if p not in seen_p:
+                    unique_phrases.append(p)
+                    seen_p.add(p)
+                    
+            if len(unique_phrases) >= 2:
+                for i in range(len(unique_phrases)-1):
+                    sub = unique_phrases[i]
+                    obj = unique_phrases[i+1]
+                    m = re.search(rf'{re.escape(sub)}(.*?){re.escape(obj)}', s)
+                    if m:
+                        pred_raw = m.group(1).strip()
+                        pred = re.sub(r'[^a-zA-Z0-9\s]', '', pred_raw)
+                        # Remove articles
+                        words = [w for w in pred.split() if w.lower() not in ('a', 'an', 'the', 'some')]
+                        pred = " ".join(words).strip()
+                        if not pred:
+                            pred = "related to"
+                        add(sub, pred, obj)
 
     return triples
 

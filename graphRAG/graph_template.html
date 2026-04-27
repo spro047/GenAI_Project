@@ -139,8 +139,11 @@
   /* ── Search ──────────────────────────────────────────────────── */
   .search-wrap { padding: 12px 16px; border-bottom: 1px solid var(--border); }
 
+  .search-form { display: flex; gap: 8px; }
+
   input[type="search"] {
-    width: 100%;
+    flex: 1;
+    min-width: 0;
     background: var(--bg);
     border: 1px solid var(--border);
     border-radius: 6px;
@@ -154,6 +157,18 @@
 
   input[type="search"]:focus { border-color: var(--accent); }
   input[type="search"]::placeholder { color: var(--text-muted); }
+
+  #btn-search, #btn-clear {
+    flex: 0 0 auto;
+  }
+
+  .search-feedback {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 11px;
+    color: var(--c-person);
+    margin-top: 8px;
+    display: none;
+  }
 
   /* ── Controls ────────────────────────────────────────────────── */
   .controls { padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
@@ -325,7 +340,12 @@
   <aside class="sidebar">
 
     <div class="search-wrap">
-      <input type="search" id="search" placeholder="Search nodes…">
+      <form id="search-form" class="search-form">
+        <input type="search" id="search" placeholder="Search nodes…">
+        <button type="submit" id="btn-search">Search</button>
+        <button type="button" id="btn-clear">Clear</button>
+      </form>
+      <div id="search-feedback" class="search-feedback">No node found</div>
     </div>
 
     <div class="sidebar-section">
@@ -619,12 +639,65 @@ function applyTypeFilter() {
 // ═══════════════════════════════════════════════════════════════════════════
 // SEARCH
 // ═══════════════════════════════════════════════════════════════════════════
-document.getElementById("search").addEventListener("input", e => {
-  const q = e.target.value.toLowerCase().trim();
-  if (!q) { clearSelection(); return; }
-  const match = nodes.find(n => n.label.toLowerCase().includes(q));
-  if (match) selectNode(match);
+const searchForm = document.getElementById("search-form");
+const searchInput = document.getElementById("search");
+const searchFeedback = document.getElementById("search-feedback");
+const btnClear = document.getElementById("btn-clear");
+
+searchForm.addEventListener("submit", e => {
+  e.preventDefault();
+  performSearch();
 });
+
+btnClear.addEventListener("click", () => {
+  searchInput.value = "";
+  searchFeedback.style.display = "none";
+  clearSelection();
+  // Return to default view (reset zoom/pan)
+  svg.transition().duration(500).call(
+    zoom.transform, d3.zoomIdentity.translate(0, 0).scale(1)
+  );
+});
+
+// Detect clear "X" button click or backspace clearing the input
+searchInput.addEventListener("input", e => {
+  if (e.target.value.trim() === "") {
+    searchFeedback.style.display = "none";
+    clearSelection();
+  }
+});
+
+function performSearch() {
+  const q = searchInput.value.toLowerCase().trim();
+  if (!q) { 
+    clearSelection(); 
+    searchFeedback.style.display = "none";
+    return; 
+  }
+  
+  // Filter by hidden types to ensure we only search visible nodes
+  searchFeedback.style.display = "none";
+  const match = nodes.find(n => 
+    !hiddenTypes.has(n.type) && n.label.toLowerCase().includes(q)
+  );
+
+  if (match) {
+    selectNode(match);
+    
+    // Zoom and center on the matched node
+    const scale = 1.5; // Zoom level
+    const x = W / 2 - match.x * scale;
+    const y = H / 2 - match.y * scale;
+    
+    svg.transition().duration(750).call(
+      zoom.transform, 
+      d3.zoomIdentity.translate(x, y).scale(scale)
+    );
+  } else {
+    clearSelection();
+    searchFeedback.style.display = "block";
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CONTROLS

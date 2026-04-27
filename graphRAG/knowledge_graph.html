@@ -1,872 +1,1222 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Knowledge Graph Builder</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Knowledge Graph Builder</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
 
-  :root {
-    --bg:           #0b0e14;
-    --surface:      #1a1f2b;
-    --border:       #2e3545;
-    --text:         #e2e8f0;
-    --text-muted:   #94a3b8;
-    --accent:       #00d2ff;
+    :root {
+      --bg: #0b0e14;
+      --surface: #1a1f2b;
+      --border: #2e3545;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --accent: #00d2ff;
 
-    --c-person:     #ffd700;
-    --c-org:        #4c8eda;
-    --c-leg:        #f16667;
-    --c-case:       #ff9f00;
-    --c-concept:    #d973d9;
-    --c-gov:        #47cc7a;
-    --c-other:      #8d8f92;
-  }
+      --c-person: #ffd700;
+      --c-org: #4c8eda;
+      --c-leg: #f16667;
+      --c-case: #ff9f00;
+      --c-concept: #d973d9;
+      --c-gov: #47cc7a;
+      --c-other: #8d8f92;
+    }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'IBM Plex Sans', sans-serif;
-    height: 100vh;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'IBM Plex Sans', sans-serif;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
 
-  /* ── Header ─────────────────────────────────────────────────── */
-  header {
-    padding: 10px 24px;
-    border-bottom: 1px solid var(--border);
-    background: rgba(26, 31, 43, 0.8);
-    backdrop-filter: blur(12px);
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    flex-shrink: 0;
-    z-index: 100;
-  }
+    /* ── Header ─────────────────────────────────────────────────── */
+    header {
+      padding: 10px 24px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(26, 31, 43, 0.8);
+      backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-shrink: 0;
+      z-index: 100;
+    }
 
-  header h1 {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--accent);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-  }
+    header h1 {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
 
-  .stats {
-    margin-left: auto;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    color: var(--text-muted);
-    display: flex;
-    gap: 20px;
-  }
+    .stats {
+      margin-left: auto;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+      display: flex;
+      gap: 20px;
+    }
 
-  .stats span { color: #fff; font-weight: 500; }
+    .stats span {
+      color: #fff;
+      font-weight: 500;
+    }
 
-  /* ── Layout ──────────────────────────────────────────────────── */
-  .layout {
-    display: flex;
-    flex: 1;
-    overflow: hidden;
-  }
+    /* ── Layout ──────────────────────────────────────────────────── */
+    .layout {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
 
-  /* ── Sidebar ─────────────────────────────────────────────────── */
-  .sidebar {
-    width: 320px;
-    background: var(--surface);
-    border-right: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    flex-shrink: 0;
-    overflow-y: auto;
-    box-shadow: 10px 0 30px rgba(0,0,0,0.3);
-    z-index: 50;
-  }
+    /* ── Sidebar ─────────────────────────────────────────────────── */
+    .sidebar {
+      width: 320px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow-y: auto;
+      box-shadow: 10px 0 30px rgba(0, 0, 0, 0.3);
+      z-index: 50;
+    }
 
-  .sidebar-section {
-    padding: 20px;
-    border-bottom: 1px solid var(--border);
-  }
+    .sidebar-section {
+      padding: 20px;
+      border-bottom: 1px solid var(--border);
+    }
 
-  .sidebar-label {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 10px;
-    font-weight: 600;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    margin-bottom: 12px;
-  }
+    .sidebar-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-bottom: 12px;
+    }
 
-  /* ── Text Input ─────────────────────────────────────────────── */
-  .input-section {
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
+    /* ── Text Input ─────────────────────────────────────────────── */
+    .input-section {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
 
-  .input-section textarea {
-    width: 100%;
-    min-height: 120px;
-    background: #0f131a;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 14px;
-    font-family: 'IBM Plex Sans', sans-serif;
-    font-size: 13px;
-    color: var(--text);
-    resize: none;
-    outline: none;
-    transition: all 0.2s;
-  }
+    .input-section textarea {
+      width: 100%;
+      min-height: 120px;
+      background: #0f131a;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 13px;
+      color: var(--text);
+      resize: none;
+      outline: none;
+      transition: all 0.2s;
+    }
 
-  .input-section textarea:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(0, 210, 255, 0.1);
-  }
+    .input-section textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0, 210, 255, 0.1);
+    }
 
-  .generate-btn {
-    padding: 14px;
-    border-radius: 8px;
-    border: none;
-    background: var(--accent);
-    color: #000;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 12px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-  }
+    .generate-btn {
+      padding: 14px;
+      border-radius: 8px;
+      border: none;
+      background: var(--accent);
+      color: #000;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
 
-  .generate-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 210, 255, 0.3);
-  }
+    .generate-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 210, 255, 0.3);
+    }
 
-  /* ── Legend ────────────────────────────────────────────────── */
-  .legend-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 0;
-    cursor: pointer;
-    transition: opacity 0.2s;
-  }
+    /* ── Legend ────────────────────────────────────────────────── */
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
 
-  .legend-dot {
-    width: 12px; height: 12px;
-    border-radius: 50%;
-    border: 2px solid rgba(255,255,255,0.1);
-  }
+    .legend-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.1);
+    }
 
-  /* ── Canvas ──────────────────────────────────────────────────── */
-  #graph-container {
-    flex: 1;
-    position: relative;
-    background: radial-gradient(circle at center, #1a202c 0%, #0b0e14 100%);
-  }
+    /* ── Canvas ──────────────────────────────────────────────────── */
+    #graph-container {
+      flex: 1;
+      position: relative;
+      background: radial-gradient(circle at center, #1a202c 0%, #0b0e14 100%);
+    }
 
-  /* ── Links & Edges ───────────────────────────────────────────── */
-  .link {
-    stroke: #4a5568;
-    stroke-opacity: 0.4;
-    stroke-width: 1.5px;
-  }
+    /* ── Links & Edges ───────────────────────────────────────────── */
+    .link {
+      stroke: #4a5568;
+      stroke-opacity: 0.4;
+      stroke-width: 1.5px;
+    }
 
-  .edge-label-bg {
-    fill: var(--bg);
-    opacity: 0.8;
-    rx: 4; ry: 4;
-  }
+    .edge-label-bg {
+      fill: var(--surface);
+      stroke: var(--border);
+      stroke-width: 1px;
+      opacity: 0.9;
+      rx: 4;
+      ry: 4;
+    }
 
-  .edge-label {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 8px;
-    font-weight: 600;
-    fill: var(--accent);
-    text-anchor: middle;
-    pointer-events: none;
-    text-transform: uppercase;
-  }
+    .edge-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 7.5px;
+      font-weight: 600;
+      fill: var(--accent);
+      text-anchor: middle;
+      pointer-events: auto;
+      text-transform: uppercase;
+    }
 
-  /* ── Nodes ───────────────────────────────────────────────────── */
-  .node circle {
-    stroke: rgba(255,255,255,0.2);
-    stroke-width: 2px;
-    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.4));
-  }
+    /* ── Nodes ───────────────────────────────────────────────────── */
+    .node circle {
+      stroke: rgba(255, 255, 255, 0.2);
+      stroke-width: 2px;
+      filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.4));
+    }
 
-  .node text {
-    font-family: 'IBM Plex Sans', sans-serif;
-    font-size: 11px;
-    font-weight: 600;
-    fill: #fff;
-    pointer-events: none;
-    text-shadow: 0 1px 4px rgba(0,0,0,0.8);
-  }
+    .node text {
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 10px;
+      font-weight: 600;
+      fill: #fff;
+      text-anchor: middle;
+      pointer-events: auto;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+    }
 
-  #tooltip.visible { opacity: 1; }
+    #tooltip.visible {
+      opacity: 1;
+    }
 
-  .tt-name {
-    font-weight: 600;
-    font-size: 13px;
-    margin-bottom: 3px;
-    color: var(--text);
-  }
+    .tt-name {
+      font-weight: 600;
+      font-size: 13px;
+      margin-bottom: 3px;
+      color: var(--text);
+    }
 
-  .tt-type {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    margin-bottom: 6px;
-  }
+    .tt-type {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 6px;
+    }
 
-  .tt-desc {
-    font-size: 11px;
-    color: var(--text-muted);
-    line-height: 1.5;
-    margin-bottom: 6px;
-  }
+    .tt-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-bottom: 6px;
+    }
 
-  .tt-connections {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 10px;
-    color: var(--text-muted);
-    border-top: 1px solid var(--border);
-    padding-top: 6px;
-    margin-top: 4px;
-  }
+    .tt-connections {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border);
+      padding-top: 6px;
+      margin-top: 4px;
+    }
 
-  .tt-connections span { color: var(--accent); }
+    .tt-connections span {
+      color: var(--accent);
+    }
 
-  /* ── Canvas Elements ────────────────────────────────────────── */
-  svg { 
-    width: 100%; 
-    height: 100%; 
-    display: block;
-  }
+    /* ── Canvas Elements ────────────────────────────────────────── */
+    svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
 
-  #tooltip {
-    position: absolute;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 10px 13px;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.15s;
-    max-width: 260px;
-    z-index: 1000;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-  }
+    #tooltip {
+      position: absolute;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 13px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s;
+      max-width: 260px;
+      z-index: 1000;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    }
 
-  /* ── Empty State ─────────────────────────────────────────────── */
-  .empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    color: var(--text-muted);
-    text-align: center;
-    padding: 40px;
-  }
+    /* ── Empty State ─────────────────────────────────────────────── */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-muted);
+      text-align: center;
+      padding: 40px;
+    }
 
-  .empty-state-icon {
-    font-size: 48px;
-    margin-bottom: 16px;
-    opacity: 0.5;
-  }
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
 
-  .empty-state-text {
-    font-size: 14px;
-    max-width: 300px;
-    line-height: 1.6;
-  }
-</style>
+    .empty-state-text {
+      font-size: 14px;
+      max-width: 300px;
+      line-height: 1.6;
+    }
+  </style>
 </head>
+
 <body>
 
-<header>
-  <h1>Knowledge Graph Builder</h1>
-  <div class="stats">
-    nodes <span id="stat-nodes">—</span> &nbsp;|&nbsp;
-    edges <span id="stat-edges">—</span> &nbsp;|&nbsp;
-    communities <span id="stat-communities">—</span>
-  </div>
-  <div class="metadata-stats" style="margin-top: 8px; font-size: 12px; color: var(--text-muted); font-family: 'IBM Plex Mono', monospace;">
-    Method: <span id="stat-method" style="color: var(--accent);">—</span> &nbsp;|&nbsp;
-    Search Augmented: <span id="stat-search" style="color: var(--accent);">—</span>
-  </div>
-</header>
-
-<div class="layout">
-
-  <!-- ── Sidebar ─────────────────────────────────────── -->
-  <aside class="sidebar">
-
-    <div class="input-section">
-      <div class="sidebar-label">Input Text</div>
-      <textarea id="input-text" placeholder="Paste your paragraph here to extract entities and relationships..."></textarea>
-      <div id="error-msg" class="error-msg"></div>
-      <button id="generate-btn" class="generate-btn">Generate Graph</button>
+  <header>
+    <h1>Knowledge Graph Builder</h1>
+    <div class="stats">
+      nodes <span id="stat-nodes">—</span> &nbsp;|&nbsp;
+      edges <span id="stat-edges">—</span> &nbsp;|&nbsp;
+      communities <span id="stat-communities">—</span>
     </div>
-
-    <div class="search-wrap">
-      <input type="search" id="search" placeholder="Search nodes…">
+    <div class="metadata-stats"
+      style="margin-top: 8px; font-size: 12px; color: var(--text-muted); font-family: 'IBM Plex Mono', monospace;">
+      Method: <span id="stat-method" style="color: var(--accent);">—</span> &nbsp;|&nbsp;
+      Search Augmented: <span id="stat-search" style="color: var(--accent);">—</span>
     </div>
+  </header>
 
-    <div class="sidebar-section">
-      <div class="sidebar-label">Entity Types</div>
-      <div id="legend"></div>
-    </div>
+  <div class="layout">
 
-    <div class="sidebar-section">
-      <div class="sidebar-label">Controls</div>
-      <div class="controls">
-        <div class="control-row">
-          <div class="control-label">Link distance</div>
-          <input type="range" id="link-distance" min="60" max="400" value="180">
+    <!-- ── Sidebar ─────────────────────────────────────── -->
+    <aside class="sidebar">
+
+      <div class="input-section">
+        <div class="sidebar-label">Input Text</div>
+        <textarea id="input-text"
+          placeholder="Paste your paragraph here to extract entities and relationships..."></textarea>
+        <div id="error-msg" class="error-msg"></div>
+        <button id="generate-btn" class="generate-btn">Generate Graph</button>
+      </div>
+
+      <div class="search-wrap">
+        <input type="search" id="search" placeholder="Search nodes by name...">
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-label" style="display:flex; justify-content:space-between; align-items:center;">
+          <span>Filter by Type</span>
+          <button id="btn-clear-filters"
+            style="font-size:11px; padding:2px 6px; background:transparent; border:1px solid #556; color:#aab; cursor:pointer; border-radius:3px;">Clear
+            Filters</button>
         </div>
-        <div class="control-row">
-          <div class="control-label">Charge strength</div>
-          <input type="range" id="charge" min="-1200" max="-50" value="-600">
-        </div>
-        <div class="btn-row">
-          <button id="btn-reset">Reset zoom</button>
-          <button id="btn-all">Show all</button>
+        <div id="filter-state" style="font-size:12px; color:var(--text-muted); margin-bottom:8px; font-style:italic;">
+          Showing: All</div>
+        <div id="legend" style="display:flex; flex-direction:column; gap:5px;"></div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-label">Controls</div>
+        <div class="controls">
+          <div class="control-row">
+            <div class="control-label">Link distance</div>
+            <input type="range" id="link-distance" min="100" max="800" value="400">
+          </div>
+          <div class="control-row">
+            <div class="control-label">Charge strength</div>
+            <input type="range" id="charge" min="-3000" max="-100" value="-1500">
+          </div>
+          <div class="btn-row">
+            <button id="btn-reset">Reset zoom</button>
+            <button id="btn-all">Show all</button>
+          </div>
         </div>
       </div>
-    </div>
 
-    <div class="sidebar-section">
-      <div class="sidebar-label">Query System</div>
-      <div class="query-section">
-        <input type="text" id="query-input" placeholder="Ask a question (e.g. Who leads Fremen?)" style="width: 100%; padding: 8px; border-radius: 4px; background: #0f131a; border: 1px solid var(--border); color: var(--text);">
-        <button id="query-btn" class="generate-btn" style="background: var(--c-case); color: #000; margin-top: 10px; width: 100%;">Ask Graph</button>
-        <div id="query-answer" style="margin-top: 15px; font-size: 13px; color: var(--accent); font-style: italic; display: none;"></div>
+      <div class="sidebar-section">
+        <div class="sidebar-label">Query System</div>
+        <div class="query-section">
+          <input type="text" id="query-input" placeholder="Ask a question (e.g. Who leads Fremen?)"
+            style="width: 100%; padding: 8px; border-radius: 4px; background: #0f131a; border: 1px solid var(--border); color: var(--text);">
+          <button id="query-btn" class="generate-btn"
+            style="background: var(--c-case); color: #000; margin-top: 10px; width: 100%;">Ask Graph</button>
+          <div id="query-answer"
+            style="margin-top: 15px; font-size: 13px; color: var(--accent); font-style: italic; display: none;"></div>
+        </div>
       </div>
-    </div>
 
-  </aside>
+    </aside>
 
-  <!-- ── Graph canvas ────────────────────────────────── -->
-  <div id="graph-container">
-    <div id="empty-state" class="empty-state">
-      <div class="empty-state-icon">🔗</div>
-      <div class="empty-state-text">
-        Enter some text in the input box and click "Generate Graph" to visualize entities and relationships.
+    <!-- ── Graph canvas ────────────────────────────────── -->
+    <div id="graph-container">
+      <div id="empty-state" class="empty-state">
+        <div class="empty-state-icon">🔗</div>
+        <div class="empty-state-text">
+          Enter some text in the input box and click "Generate Graph" to visualize entities and relationships.
+        </div>
       </div>
+      <svg id="graph" style="display: none;">
+        <defs>
+          <marker id="arrow" viewBox="0 -4 10 8" refX="18" refY="0" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M0,-4L10,0L0,4" fill="#1e3a5f" />
+          </marker>
+        </defs>
+        <g id="root"></g>
+      </svg>
+      <div id="tooltip"></div>
     </div>
-    <svg id="graph" style="display: none;">
-      <defs>
-        <marker id="arrow" viewBox="0 -4 10 8" refX="18" refY="0"
-                markerWidth="6" markerHeight="6" orient="auto">
-          <path d="M0,-4L10,0L0,4" fill="#1e3a5f"/>
-        </marker>
-      </defs>
-      <g id="root"></g>
-    </svg>
-    <div id="tooltip"></div>
+
   </div>
 
-</div>
+  <script>
+    // ═══════════════════════════════════════════════════════════════════════════
+    // DATA — will be populated from API
+    // ═══════════════════════════════════════════════════════════════════════════
+    let GRAPH_DATA = { nodes: [], links: [], communities: 0 };
 
-<script>
-// ═══════════════════════════════════════════════════════════════════════════
-// DATA — will be populated from API
-// ═══════════════════════════════════════════════════════════════════════════
-let GRAPH_DATA = { nodes: [], links: [], communities: 0 };
+    // ═══════════════════════════════════════════════════════════════════════════
+    // COLOUR MAP
+    // ═══════════════════════════════════════════════════════════════════════════
+    const COLOR_MAP = {
+      ORGANIZATION: "#4ECDC4",
+      PERSON: "#FF6B6B",
+      LOCATION: "#34d399",
+      PRODUCT: "#f97316",
+      AI_MODEL: "#a78bfa",
+      EVENT: "#fb923c",
+      LEGISLATION: "#60a5fa",
+      LEGAL_CASE: "#FBBF24",
+      CONCEPT: "#86efac",
+      GOVERNMENT: "#c084fc",
+      TECHNOLOGY: "#e879f9",
+      OTHER: "#94a3b8",
+    };
 
-// ═══════════════════════════════════════════════════════════════════════════
-// COLOUR MAP
-// ═══════════════════════════════════════════════════════════════════════════
-const COLOR_MAP = {
-  ORGANIZATION: "#4ECDC4",
-  PERSON:       "#FF6B6B",
-  LOCATION:     "#34d399",
-  PRODUCT:      "#f97316",
-  AI_MODEL:     "#a78bfa",
-  EVENT:        "#fb923c",
-  LEGISLATION:  "#60a5fa",
-  LEGAL_CASE:   "#FBBF24",
-  CONCEPT:      "#86efac",
-  GOVERNMENT:   "#c084fc",
-  TECHNOLOGY:   "#e879f9",
-  OTHER:        "#94a3b8",
-};
+    function nodeColor(type) {
+      return COLOR_MAP[type] || COLOR_MAP.OTHER;
+    }
 
-function nodeColor(type) {
-  return COLOR_MAP[type] || COLOR_MAP.OTHER;
-}
+    // ═══════════════════════════════════════════════════════════════════════════
+    // SETUP
+    // ═══════════════════════════════════════════════════════════════════════════
+    const svg = d3.select("#graph");
+    const root = d3.select("#root");
+    const tooltip = document.getElementById("tooltip");
+    const container = document.getElementById("graph-container");
+    const emptyState = document.getElementById("empty-state");
 
-// ═══════════════════════════════════════════════════════════════════════════
-// SETUP
-// ═══════════════════════════════════════════════════════════════════════════
-const svg       = d3.select("#graph");
-const root      = d3.select("#root");
-const tooltip   = document.getElementById("tooltip");
-const container = document.getElementById("graph-container");
-const emptyState = document.getElementById("empty-state");
+    let W = container.clientWidth;
+    let H = container.clientHeight;
 
-let W = container.clientWidth;
-let H = container.clientHeight;
+    // Zoom behaviour
+    const zoom = d3.zoom()
+      .scaleExtent([0.1, 4])
+      .on("zoom", e => root.attr("transform", e.transform));
+    svg.call(zoom);
 
-// Zoom behaviour
-const zoom = d3.zoom()
-  .scaleExtent([0.1, 4])
-  .on("zoom", e => root.attr("transform", e.transform));
-svg.call(zoom);
+    // ═══════════════════════════════════════════════════════════════════════════
+    // FORCE SIMULATION
+    // ═══════════════════════════════════════════════════════════════════════════
+    let simulation = null;
+    let nodes = [];
+    let links = [];
 
-// ═══════════════════════════════════════════════════════════════════════════
-// FORCE SIMULATION
-// ═══════════════════════════════════════════════════════════════════════════
-let simulation = null;
-let nodes = [];
-let links = [];
+    function initGraph(data) {
+      console.log("initGraph called with data:", data);
 
-function initGraph(data) {
-  console.log("initGraph called with data:", data);
-  
-  // Re-measure container size to ensure correct centering
-  W = container.clientWidth;
-  H = container.clientHeight;
-  
-  GRAPH_DATA = data;
-  
-  // Hide empty state, show graph
-  emptyState.style.display = 'none';
-  document.getElementById("graph").style.display = 'block';
-  
-  // Update stats
-  document.getElementById("stat-nodes").textContent = data.nodes.length;
-  document.getElementById("stat-edges").textContent = data.links.length;
-  document.getElementById("stat-communities").textContent = data.communities || '—';
-  
-  // Prepare nodes and links
-  nodes = data.nodes.map(d => ({ ...d }));
-  links = data.links.map(d => ({ ...d }));
+      // Re-measure container size to ensure correct centering
+      W = container.clientWidth;
+      H = container.clientHeight;
 
-  // Spread nodes in a wide circle initially to avoid start-up clustering
-  const angleStep = (2 * Math.PI) / nodes.length;
-  const spreadR   = Math.min(W, H) * 0.45;
-  nodes.forEach((n, i) => {
-    const angle = i * angleStep;
-    n.x = W / 2 + spreadR * Math.cos(angle) + (Math.random() - 0.5) * 80;
-    n.y = H / 2 + spreadR * Math.sin(angle) + (Math.random() - 0.5) * 80;
-  });
+      GRAPH_DATA = data;
 
-  // Compute degree for node sizing
-  const degreeMap = {};
-  links.forEach(l => {
-    const srcId = typeof l.source === 'object' ? l.source.id : l.source;
-    const tgtId = typeof l.target === 'object' ? l.target.id : l.target;
-    degreeMap[srcId] = (degreeMap[srcId] || 0) + 1;
-    degreeMap[tgtId] = (degreeMap[tgtId] || 0) + 1;
-  });
-  nodes.forEach(n => { n.degree = degreeMap[n.id] || 1; });
+      // Hide empty state, show graph
+      emptyState.style.display = 'none';
+      document.getElementById("graph").style.display = 'block';
 
-  const maxDeg = Math.max(...nodes.map(n => n.degree), 1);
-  const minDeg = Math.min(...nodes.map(n => n.degree), 1);
-  const nodeRadius = d => {
-    const t = (d.degree - minDeg) / (maxDeg - minDeg || 1);
-    return 8 + t * 28;  // 8px → 36px
-  };
+      // Update stats
+      document.getElementById("stat-nodes").textContent = data.nodes.length;
+      document.getElementById("stat-edges").textContent = data.links.length;
+      document.getElementById("stat-communities").textContent = data.communities || '—';
 
-  // Stop existing simulation
-  if (simulation) {
-    simulation.stop();
-  }
+      // Prepare nodes and links
+      nodes = data.nodes.map(d => ({ ...d }));
+      links = data.links.map(d => ({ ...d }));
 
-  const linkDist = +document.getElementById("link-distance").value || 180;
-  const chargeSt = +document.getElementById("charge").value || -600;
+      // Pre-process links to group multiple relationships between same nodes
+      links.forEach(l => {
+        let sameEdges = links.filter(o =>
+          (o.source === l.source && o.target === l.target) ||
+          (o.source === l.target && o.target === l.source)
+        );
+        l.linknum = sameEdges.indexOf(l);
+        l.totalEdges = sameEdges.length;
+      });
 
-  simulation = d3.forceSimulation(nodes)
-    .force("link",      d3.forceLink(links).id(d => d.id).distance(linkDist).strength(0.4))
-    .force("charge",    d3.forceManyBody().strength(chargeSt).distanceMax(600))
-    .force("center",    d3.forceCenter(W / 2, H / 2).strength(0.04))
-    .force("collision", d3.forceCollide().radius(d => nodeRadius(d) + 12))
-    .alphaDecay(0.015);
+      // Spread nodes in a wide circle initially to avoid start-up clustering
+      const angleStep = (2 * Math.PI) / nodes.length;
+      const spreadR = Math.min(W, H) * 0.45;
+      nodes.forEach((n, i) => {
+        const angle = i * angleStep;
+        n.x = W / 2 + spreadR * Math.cos(angle) + (Math.random() - 0.5) * 80;
+        n.y = H / 2 + spreadR * Math.sin(angle) + (Math.random() - 0.5) * 80;
+      });
 
-  // Clear previous elements
-  root.selectAll("*").remove();
+      // Compute degree for node sizing
+      const degreeMap = {};
+      links.forEach(l => {
+        const srcId = typeof l.source === 'object' ? l.source.id : l.source;
+        const tgtId = typeof l.target === 'object' ? l.target.id : l.target;
+        degreeMap[srcId] = (degreeMap[srcId] || 0) + 1;
+        degreeMap[tgtId] = (degreeMap[tgtId] || 0) + 1;
+      });
+      nodes.forEach(n => { n.degree = degreeMap[n.id] || 1; });
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // DRAW LINKS
-  // ═══════════════════════════════════════════════════════════════════════════
-  const linkGroup = root.append("g").attr("class", "links");
-  const labelGroup = root.append("g").attr("class", "edge-labels");
-  const nodeGroup  = root.append("g").attr("class", "nodes");
+      const maxDeg = Math.max(...nodes.map(n => n.degree), 1);
+      const minDeg = Math.min(...nodes.map(n => n.degree), 1);
+      const nodeRadius = d => {
+        const t = (d.degree - minDeg) / (maxDeg - minDeg || 1);
+        return 8 + t * 28;  // 8px → 36px
+      };
 
-  const link = linkGroup.selectAll("line")
-    .data(links)
-    .join("line")
-    .attr("class", "link")
-    .attr("marker-end", "url(#arrow)");
+      // Stop existing simulation
+      if (simulation) {
+        simulation.stop();
+      }
 
-  // Edge label containers (Background + Text)
-  const edgeLabelContainer = labelGroup.selectAll("g")
-    .data(links)
-    .join("g")
-    .attr("class", "edge-label-container");
+      const linkDist = +document.getElementById("link-distance").value || 400;
+      const chargeSt = +document.getElementById("charge").value || -1500;
 
-  edgeLabelContainer.append("rect")
-    .attr("class", "edge-label-bg")
-    .attr("width", d => (d.label?.length || 0) * 5 + 10)
-    .attr("height", 14)
-    .attr("x", d => -((d.label?.length || 0) * 5 + 10) / 2)
-    .attr("y", -7);
+      simulation = d3.forceSimulation(nodes)
+        .force("link", d3.forceLink(links).id(d => d.id).distance(linkDist).strength(0.3)) // Softer link tension
+        .force("charge", d3.forceManyBody().strength(chargeSt).distanceMax(1500)) // Expanded spacing repulsion
+        .force("center", d3.forceCenter(W / 2, H / 2).strength(0.05))
+        .force("collision", d3.forceCollide().radius(d => d.degree > 2 ? nodeRadius(d) + 90 : nodeRadius(d) + 40)) // Intelligent dynamic collision boundary to shield curved text
+        .alphaDecay(0.012);
 
-  const edgeLabel = edgeLabelContainer.append("text")
-    .attr("class", "edge-label")
-    .text(d => d.label || "");
+      // Clear previous elements
+      root.selectAll("*").remove();
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // DRAW NODES
-  // ═══════════════════════════════════════════════════════════════════════════
-  const node = nodeGroup.selectAll("g")
-    .data(nodes)
-    .join("g")
-    .attr("class", "node")
-    .call(d3.drag()
-      .on("start", dragStart)
-      .on("drag",  dragged)
-      .on("end",   dragEnd));
+      // ═══════════════════════════════════════════════════════════════════════════
+      // DRAW LINKS
+      // ═══════════════════════════════════════════════════════════════════════════
+      const linkGroup = root.append("g").attr("class", "links");
+      const labelGroup = root.append("g").attr("class", "edge-labels");
+      const nodeGroup = root.append("g").attr("class", "nodes");
 
-  // Circle
-  node.append("circle")
-    .attr("r", nodeRadius)
-    .attr("fill", d => nodeColor(d.type));
+      const link = linkGroup.selectAll("path")
+        .data(links)
+        .join("path")
+        .attr("class", "link")
+        .attr("marker-end", "url(#arrow)")
+        .style("fill", "none");
 
-  // Label (Always visible, bold)
-  node.append("text")
-    .attr("dy", d => nodeRadius(d) + 14)
-    .text(d => d.label);
+      function wrapEdgeLabel(d) {
+        const text = d.label || "";
+        if (text.length <= 25) return [text];
+        const words = text.split(/\s+/);
+        let lines = [], curLine = "";
+        for (let w of words) {
+          if (curLine.length + w.length > 25) {
+            lines.push(curLine.trim());
+            curLine = w + " ";
+          } else curLine += w + " ";
+        }
+        if (curLine) lines.push(curLine.trim());
+        if (lines.length > 2) lines = [lines[0], lines[1] + "..."];
+        return lines;
+      }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // SIMULATION TICK
-  // ═══════════════════════════════════════════════════════════════════════════
-  simulation.on("tick", () => {
-    link
-      .attr("x1", d => d.source.x)
-      .attr("y1", d => d.source.y)
-      .attr("x2", d => d.target.x)
-      .attr("y2", d => d.target.y);
+      // Edge label containers (Background + Text)
+      const edgeLabelContainer = labelGroup.selectAll("g")
+        .data(links)
+        .join("g")
+        .attr("class", "edge-label-container");
 
-    edgeLabelContainer
-      .attr("transform", d => `translate(${(d.source.x + d.target.x) / 2}, ${(d.source.y + d.target.y) / 2})`);
+      edgeLabelContainer.append("rect")
+        .attr("class", "edge-label-bg")
+        .attr("width", d => Math.max(...wrapEdgeLabel(d).map(l => l.length)) * 4.6 + 12)
+        .attr("height", d => wrapEdgeLabel(d).length * 10 + 6)
+        .attr("x", d => -(Math.max(...wrapEdgeLabel(d).map(l => l.length)) * 4.6 + 12) / 2)
+        .attr("y", d => -(wrapEdgeLabel(d).length * 10 + 6) / 2)
+        .attr("rx", 3).attr("ry", 3);
 
-    node.attr("transform", d => `translate(${d.x},${d.y})`);
-  });
+      edgeLabelContainer.each(function (d) {
+        const g = d3.select(this);
+        const lines = wrapEdgeLabel(d);
+        const textEl = g.append("text").attr("class", "edge-label").attr("dominant-baseline", "middle").style("cursor", "grab");
+        lines.forEach((line, i) => {
+          textEl.append("tspan")
+            .attr("x", 0)
+            .attr("dy", i === 0 ? (lines.length === 1 ? "0.3em" : "-0.3em") : "1.2em")
+            .text(line);
+        });
+        g.append("title").text(d.label);
+      });
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // TOOLTIP & HOVER
-  // ═══════════════════════════════════════════════════════════════════════════
-  let selectedNode = null;
+      edgeLabelContainer.call(d3.drag()
+        .on("start", (e, d) => {
+          e.sourceEvent.stopPropagation();
+          d3.select(e.sourceEvent.target).style("cursor", "grabbing");
+          if (d.dragCx === undefined) {
+            d.dragCx = d.midX !== undefined ? d.midX : (d.source.x + d.target.x) / 2;
+            d.dragCy = d.midY !== undefined ? d.midY : (d.source.y + d.target.y) / 2;
+          }
+        })
+        .on("drag", (e, d) => {
+          d.dragCx += e.dx;
+          d.dragCy += e.dy;
+          if (typeof updateGraphLayout !== 'undefined') updateGraphLayout();
+        })
+        .on("end", (e, d) => {
+          d3.select(e.sourceEvent.target).style("cursor", "grab");
+        })
+      );
 
-  node.on("mouseover", (e, d) => {
-    const connections = links.filter(l =>
-      (typeof l.source === 'object' ? l.source.id : l.source) === d.id ||
-      (typeof l.target === 'object' ? l.target.id : l.target) === d.id
-    ).length;
+      // ═══════════════════════════════════════════════════════════════════════════
+      // DRAW NODES
+      // ═══════════════════════════════════════════════════════════════════════════
+      const node = nodeGroup.selectAll("g")
+        .data(nodes)
+        .join("g")
+        .attr("class", "node")
+        .call(d3.drag()
+          .on("start", dragStart)
+          .on("drag", dragged)
+          .on("end", dragEnd));
 
-    tooltip.innerHTML = `
+      // Circle
+      node.append("circle")
+        .attr("r", nodeRadius)
+        .attr("fill", d => nodeColor(d.type));
+
+      function truncateNodeName(str, maxLen = 22) {
+        if (!str) return "";
+        return str.length > maxLen ? str.slice(0, maxLen - 3) + "..." : str;
+      }
+
+      // Label (Always visible, bold)
+      node.append("text")
+        .attr("dy", d => nodeRadius(d) + 14)
+        .text(d => truncateNodeName(d.label));
+
+      node.append("title").text(d => d.label);
+
+      // ═══════════════════════════════════════════════════════════════════════════
+      // SIMULATION TICK
+      // ═══════════════════════════════════════════════════════════════════════════
+      function updateGraphLayout() {
+        link.attr("d", d => {
+          let x1 = d.source.x, y1 = d.source.y;
+          let x2 = d.target.x, y2 = d.target.y;
+
+          let cx, cy;
+          if (d.dragCx !== undefined && d.dragCy !== undefined) {
+            cx = 2 * d.dragCx - 0.5 * x1 - 0.5 * x2;
+            cy = 2 * d.dragCy - 0.5 * y1 - 0.5 * y2;
+            d.midX = d.dragCx;
+            d.midY = d.dragCy;
+          } else {
+            if (d.totalEdges <= 1) {
+              d.midX = (x1 + x2) / 2;
+              d.midY = (y1 + y2) / 2;
+              return `M${x1},${y1} L${x2},${y2}`;
+            }
+
+            let offsetIndex = d.linknum;
+            if (d.totalEdges % 2 !== 0 && offsetIndex === 0) {
+              d.midX = (x1 + x2) / 2;
+              d.midY = (y1 + y2) / 2;
+              return `M${x1},${y1} L${x2},${y2}`;
+            }
+            if (d.totalEdges % 2 !== 0) offsetIndex -= 1;
+
+            let side = offsetIndex % 2 === 0 ? 1 : -1;
+            // Canonical check to fix A->B / B->A anti-parallel collision
+            let sid = typeof d.source === "object" ? d.source.id : d.source;
+            let tid = typeof d.target === "object" ? d.target.id : d.target;
+            if (sid > tid) { side = -side; }
+
+            // Drastically increase control curve spacing so the focal midpoints shift past label collision bounds
+            let distance = 100 + Math.floor(offsetIndex / 2) * 100;
+
+            let dx = x2 - x1, dy = y2 - y1;
+            let len = Math.sqrt(dx * dx + dy * dy) || 1;
+            let nx = -dy / len, ny = dx / len;
+
+            let mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+            cx = mx + nx * distance * side; cy = my + ny * distance * side;
+
+            d.midX = 0.25 * x1 + 0.5 * cx + 0.25 * x2;
+            d.midY = 0.25 * y1 + 0.5 * cy + 0.25 * y2;
+          }
+
+          return `M${x1},${y1} Q${cx},${cy} ${x2},${y2}`;
+        });
+
+        edgeLabelContainer.attr("transform", d => {
+          let dx = d.target.x - d.source.x;
+          let dy = d.target.y - d.source.y;
+          let angle = Math.atan2(dy, dx) * 180 / Math.PI;
+          if (angle > 90 || angle < -90) angle += 180;
+
+          let tx = d.midX !== undefined ? d.midX : (d.source.x + d.target.x) / 2;
+          let ty = d.midY !== undefined ? d.midY : (d.source.y + d.target.y) / 2;
+          return `translate(${tx}, ${ty}) rotate(${angle})`;
+        });
+
+        node.attr("transform", d => `translate(${d.x},${d.y})`);
+      }
+
+      simulation.on("tick", updateGraphLayout);
+
+      // ═══════════════════════════════════════════════════════════════════════════
+      // TOOLTIP & HOVER
+      // ═══════════════════════════════════════════════════════════════════════════
+      let selectedNode = null;
+
+      node.on("mouseover", (e, d) => {
+        const connections = links.filter(l =>
+          (typeof l.source === 'object' ? l.source.id : l.source) === d.id ||
+          (typeof l.target === 'object' ? l.target.id : l.target) === d.id
+        ).length;
+
+        tooltip.innerHTML = `
       <div class="tt-name">${d.label}</div>
       <div class="tt-type" style="color:${nodeColor(d.type)}">${d.type || 'ENTITY'}</div>
       ${d.description ? `<div class="tt-desc">${d.description}</div>` : ""}
       <div class="tt-connections"><span>${connections}</span> connection${connections !== 1 ? "s" : ""}</div>
     `;
-    tooltip.classList.add("visible");
-    positionTooltip(e);
-  })
-  .on("mousemove", positionTooltip)
-  .on("mouseleave", () => tooltip.classList.remove("visible"))
-  .on("click", (e, d) => {
-    e.stopPropagation();
-    if (selectedNode === d.id) {
-      clearSelection();
-    } else {
-      selectNode(d);
-    }
-  });
-
-  svg.on("click", clearSelection);
-
-  function positionTooltip(e) {
-    const rect = container.getBoundingClientRect();
-    let x = e.clientX - rect.left + 14;
-    let y = e.clientY - rect.top  - 10;
-    if (x + 280 > W) x = e.clientX - rect.left - 280;
-    tooltip.style.left = x + "px";
-    tooltip.style.top  = y + "px";
-  }
-
-  function selectNode(d) {
-    selectedNode = d.id;
-    const connectedIds = new Set([d.id]);
-    links.forEach(l => {
-      const srcId = typeof l.source === 'object' ? l.source.id : l.source;
-      const tgtId = typeof l.target === 'object' ? l.target.id : l.target;
-      if (srcId === d.id) connectedIds.add(tgtId);
-      if (tgtId === d.id) connectedIds.add(srcId);
-    });
-
-    node.classed("selected", n => n.id === d.id);
-    node.classed("dimmed",   n => !connectedIds.has(n.id));
-    link.classed("highlighted", l => {
-      const srcId = typeof l.source === 'object' ? l.source.id : l.source;
-      const tgtId = typeof l.target === 'object' ? l.target.id : l.target;
-      return srcId === d.id || tgtId === d.id;
-    });
-    link.classed("dimmed", l => {
-      const srcId = typeof l.source === 'object' ? l.source.id : l.source;
-      const tgtId = typeof l.target === 'object' ? l.target.id : l.target;
-      return srcId !== d.id && tgtId !== d.id;
-    });
-  }
-
-  function clearSelection() {
-    selectedNode = null;
-    node.classed("selected dimmed", false);
-    link.classed("highlighted dimmed", false);
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // DRAG
-  // ═══════════════════════════════════════════════════════════════════════════
-  function dragStart(e, d) {
-    if (!e.active) simulation.alphaTarget(0.3).restart();
-    d.fx = d.x; d.fy = d.y;
-  }
-  function dragged(e, d)   { d.fx = e.x; d.fy = e.y; }
-  function dragEnd(e, d)   {
-    if (!e.active) simulation.alphaTarget(0);
-    d.fx = null; d.fy = null;
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // LEGEND
-  // ═══════════════════════════════════════════════════════════════════════════
-  const typeCounts = {};
-  nodes.forEach(n => { typeCounts[n.type] = (typeCounts[n.type] || 0) + 1; });
-
-  const hiddenTypes = new Set();
-  const legendEl = document.getElementById("legend");
-  legendEl.innerHTML = '';
-
-  Object.entries(COLOR_MAP).forEach(([type, color]) => {
-    if (!typeCounts[type]) return;
-    const item = document.createElement("div");
-    item.className = "legend-item";
-    item.innerHTML = `
-      <div class="legend-dot" style="background:${color}"></div>
-      <span class="legend-name">${type}</span>
-      <span class="legend-count">${typeCounts[type]}</span>
-    `;
-    item.addEventListener("click", () => {
-      if (hiddenTypes.has(type)) {
-        hiddenTypes.delete(type);
-        item.classList.remove("disabled");
-      } else {
-        hiddenTypes.add(type);
-        item.classList.add("disabled");
-      }
-      applyTypeFilter();
-    });
-    legendEl.appendChild(item);
-  });
-
-  function applyTypeFilter() {
-    node.style("display", d => hiddenTypes.has(d.type) ? "none" : null);
-    link.style("display", d => {
-      const sType = d.source.type;
-      const tType = d.target.type;
-      const sHidden = hiddenTypes.has(sType);
-      const tHidden = hiddenTypes.has(tType);
-      return sHidden || tHidden ? "none" : null;
-    });
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // SEARCH
-  // ═══════════════════════════════════════════════════════════════════════════
-  document.getElementById("search").addEventListener("input", e => {
-    const q = e.target.value.toLowerCase().trim();
-    if (!q) { clearSelection(); return; }
-    const match = nodes.find(n => n.label.toLowerCase().includes(q));
-    if (match) selectNode(match);
-  });
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // CONTROLS
-  // ═══════════════════════════════════════════════════════════════════════════
-  document.getElementById("link-distance").addEventListener("input", e => {
-    simulation.force("link").distance(+e.target.value);
-    simulation.alpha(0.3).restart();
-  });
-
-  document.getElementById("charge").addEventListener("input", e => {
-    simulation.force("charge").strength(+e.target.value);
-    simulation.alpha(0.3).restart();
-  });
-
-  document.getElementById("btn-reset").addEventListener("click", () => {
-    svg.transition().duration(500).call(
-      zoom.transform, d3.zoomIdentity.translate(0, 0).scale(1)
-    );
-  });
-
-  document.getElementById("btn-all").addEventListener("click", () => {
-    hiddenTypes.clear();
-    document.querySelectorAll(".legend-item").forEach(el => el.classList.remove("disabled"));
-    applyTypeFilter();
-    clearSelection();
-  });
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// RESIZE
-// ═══════════════════════════════════════════════════════════════════════════
-window.addEventListener("resize", () => {
-  W = container.clientWidth;
-  H = container.clientHeight;
-  if (simulation) {
-    simulation.force("center", d3.forceCenter(W / 2, H / 2));
-    simulation.alpha(0.1).restart();
-  }
-});
-
-// ═══════════════════════════════════════════════════════════════════════════
-// GENERATE BUTTON - API CALL
-// ═══════════════════════════════════════════════════════════════════════════
-const generateBtn = document.getElementById("generate-btn");
-const inputText = document.getElementById("input-text");
-const errorMsg = document.getElementById("error-msg");
-
-generateBtn.addEventListener("click", async () => {
-  const text = inputText.value.trim();
-  
-  // Validation
-  if (!text) {
-    errorMsg.textContent = "Please enter some text to generate a graph.";
-    errorMsg.classList.add("visible");
-    return;
-  }
-  
-  if (text.length < 20) {
-    errorMsg.textContent = "Please enter at least 20 characters for meaningful results.";
-    errorMsg.classList.add("visible");
-    return;
-  }
-  
-  // Clear error
-  errorMsg.classList.remove("visible");
-  
-  // Show loading state
-  generateBtn.disabled = true;
-  generateBtn.classList.add("loading");
-  generateBtn.textContent = "Generating...";
-  
-  try {
-    const response = await fetch("/generate", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ text })
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || "Failed to generate graph");
-    }
-    
-    const data = await response.json();
-    console.log("Received graph data:", data);
-    
-    if (!data.nodes || data.nodes.length === 0) {
-      throw new Error("No entities could be extracted from the text. Try a longer paragraph.");
-    }
-    
-    // Update metadata indicators
-    document.getElementById("stat-method").textContent = data.extraction_method || "Unknown";
-    document.getElementById("stat-search").textContent = data.search_augmented ? "Yes" : "No";
-    
-    initGraph(data);
-    
-  } catch (err) {
-    errorMsg.textContent = err.message || "An error occurred while generating the graph.";
-    errorMsg.classList.add("visible");
-  } finally {
-    generateBtn.disabled = false;
-    generateBtn.classList.remove("loading");
-    generateBtn.textContent = "Generate Graph";
-  }
-});
-
-// Allow Enter key in textarea to not trigger button (Shift+Enter for new line)
-inputText.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && !e.shiftKey) {
-    e.preventDefault();
-    generateBtn.click();
-  }
-});
-
-// ═══════════════════════════════════════════════════════════════════════════
-// QUERY SYSTEM
-// ═══════════════════════════════════════════════════════════════════════════
-const queryBtn = document.getElementById("query-btn");
-const queryInput = document.getElementById("query-input");
-const queryAnswer = document.getElementById("query-answer");
-
-queryBtn.addEventListener("click", async () => {
-  const q = queryInput.value.trim();
-  if (!q) return;
-  
-  if (GRAPH_DATA.nodes.length === 0) {
-    queryAnswer.textContent = "Please generate a graph first.";
-    queryAnswer.style.display = "block";
-    return;
-  }
-  
-  queryBtn.disabled = true;
-  queryAnswer.textContent = "Searching...";
-  queryAnswer.style.display = "block";
-  
-  try {
-    const response = await fetch("/query", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        query: q,
-        nodes: nodes, // Use the simulation nodes which have IDs
-        links: links
+        tooltip.classList.add("visible");
+        positionTooltip(e);
       })
-    });
-    
-    const data = await response.json();
-    queryAnswer.textContent = data.answer || "No answer found.";
-  } catch (err) {
-    queryAnswer.textContent = "Error querying graph.";
-  } finally {
-    queryBtn.disabled = false;
-  }
-});
+        .on("mousemove", positionTooltip)
+        .on("mouseleave", () => tooltip.classList.remove("visible"))
+        .on("click", (e, d) => {
+          e.stopPropagation();
+          if (selectedNode === d.id) {
+            clearSelection();
+          } else {
+            selectNode(d);
+          }
+        });
 
-queryInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") queryBtn.click();
-});
-</script>
+      svg.on("click", clearSelection);
+
+      function positionTooltip(e) {
+        const rect = container.getBoundingClientRect();
+        let x = e.clientX - rect.left + 14;
+        let y = e.clientY - rect.top - 10;
+        if (x + 280 > W) x = e.clientX - rect.left - 280;
+        tooltip.style.left = x + "px";
+        tooltip.style.top = y + "px";
+      }
+
+      function selectNode(d) {
+        selectedNode = d.id;
+        const connectedIds = new Set([d.id]);
+        links.forEach(l => {
+          const srcId = typeof l.source === 'object' ? l.source.id : l.source;
+          const tgtId = typeof l.target === 'object' ? l.target.id : l.target;
+          if (srcId === d.id) connectedIds.add(tgtId);
+          if (tgtId === d.id) connectedIds.add(srcId);
+        });
+
+        node.classed("selected", n => n.id === d.id);
+        node.classed("dimmed", n => !connectedIds.has(n.id));
+        link.classed("highlighted", l => {
+          const srcId = typeof l.source === 'object' ? l.source.id : l.source;
+          const tgtId = typeof l.target === 'object' ? l.target.id : l.target;
+          return srcId === d.id || tgtId === d.id;
+        });
+        link.classed("dimmed", l => {
+          const srcId = typeof l.source === 'object' ? l.source.id : l.source;
+          const tgtId = typeof l.target === 'object' ? l.target.id : l.target;
+          return srcId !== d.id && tgtId !== d.id;
+        });
+      }
+
+      function clearSelection() {
+        selectedNode = null;
+        node.classed("selected dimmed", false);
+        link.classed("highlighted dimmed", false);
+      }
+
+      // ═══════════════════════════════════════════════════════════════════════════
+      // DRAG
+      // ═══════════════════════════════════════════════════════════════════════════
+      function dragStart(e, d) {
+        if (!e.active) simulation.alphaTarget(0.3).restart();
+        d.fx = d.x; d.fy = d.y;
+      }
+      function dragged(e, d) { d.fx = e.x; d.fy = e.y; }
+      function dragEnd(e, d) {
+        if (!e.active) simulation.alphaTarget(0);
+        d.fx = null; d.fy = null;
+      }
+
+      // ═══════════════════════════════════════════════════════════════════════════
+      // LEGEND & FILTERING
+      // ═══════════════════════════════════════════════════════════════════════════
+      const typeCounts = {};
+      nodes.forEach(n => { typeCounts[n.type] = (typeCounts[n.type] || 0) + 1; });
+
+      const hiddenTypes = new Set();
+      const legendEl = document.getElementById("legend");
+      const filterStateEl = document.getElementById("filter-state");
+      legendEl.innerHTML = '';
+
+      function updateFilterState() {
+        if (!filterStateEl) return;
+        const totalTypes = Object.keys(typeCounts).length;
+        const visibleCount = totalTypes - hiddenTypes.size;
+        if (hiddenTypes.size === 0) filterStateEl.textContent = "Showing: All";
+        else if (visibleCount === 0) filterStateEl.textContent = "Showing: None";
+        else if (visibleCount === 1) {
+          let activeType = Object.keys(typeCounts).find(t => !hiddenTypes.has(t));
+          filterStateEl.textContent = `Showing: ${activeType}`;
+        } else {
+          filterStateEl.textContent = `Showing: ${visibleCount} types`;
+        }
+      }
+
+      Object.entries(COLOR_MAP).forEach(([type, color]) => {
+        if (!typeCounts[type]) return;
+        const item = document.createElement("label");
+        item.className = "legend-item";
+        item.style.display = "flex";
+        item.style.alignItems = "center";
+        item.style.cursor = "pointer";
+        item.style.padding = "2px 0";
+
+        // Default checked
+        const isChecked = !hiddenTypes.has(type);
+
+        item.innerHTML = `
+      <input type="checkbox" value="${type}" ${isChecked ? 'checked' : ''} style="margin-right: 8px; cursor: pointer;">
+      <div class="legend-dot" style="background:${color}; width:10px; height:10px; min-width:10px; border-radius:50%; margin-right:6px; display:inline-block;"></div>
+      <span class="legend-name" style="flex:1;">${type}</span>
+      <span class="legend-count" style="color:var(--text-muted); font-size:11px;">(${typeCounts[type]})</span>
+    `;
+
+        const checkbox = item.querySelector("input");
+        checkbox.addEventListener("change", (e) => {
+          if (e.target.checked) hiddenTypes.delete(type);
+          else hiddenTypes.add(type);
+
+          applyTypeFilter();
+          updateFilterState();
+
+          // Reprocess search dynamically over new filtered subset
+          document.getElementById("search").dispatchEvent(new Event("input"));
+        });
+
+        legendEl.appendChild(item);
+      });
+
+      updateFilterState();
+
+      const btnClearFilters = document.getElementById("btn-clear-filters");
+      if (btnClearFilters) {
+        btnClearFilters.addEventListener("click", () => {
+          hiddenTypes.clear();
+          document.querySelectorAll("#legend input[type='checkbox']").forEach(cb => cb.checked = true);
+          applyTypeFilter();
+          updateFilterState();
+          document.getElementById("search").dispatchEvent(new Event("input"));
+        });
+      }
+
+      function applyTypeFilter() {
+        node.style("display", d => hiddenTypes.has(d.type) ? "none" : null);
+        link.style("display", d => {
+          const sType = d.source.type;
+          const tType = d.target.type;
+          return hiddenTypes.has(sType) || hiddenTypes.has(tType) ? "none" : null;
+        });
+      }
+
+      // ═══════════════════════════════════════════════════════════════════════════
+      // SEARCH
+      // ═══════════════════════════════════════════════════════════════════════════
+      document.getElementById("search").addEventListener("input", e => {
+        const q = e.target.value.toLowerCase().trim();
+
+        const searchError = document.getElementById("search-error") || (() => {
+          const err = document.createElement("div");
+          err.id = "search-error";
+          err.style.color = "#ff6b6b";
+          err.style.fontSize = "12px";
+          err.style.marginTop = "5px";
+          err.style.display = "none";
+          e.target.parentNode.appendChild(err);
+          return err;
+        })();
+
+        if (!q) {
+          clearSelection();
+          searchError.style.display = "none";
+          return;
+        }
+
+        // Ensure search applies on top of node filters
+        let activeNodes = nodes.filter(n => !hiddenTypes.has(n.type));
+        if (activeNodes.length === 0) {
+          clearSelection();
+          searchError.style.display = "block";
+          searchError.textContent = "No entities are visible in the selected filters.";
+          return;
+        }
+
+        // Standard node lookup isolated strictly to visible entities globally matching queries
+        const matches = activeNodes.filter(n => n.label.toLowerCase().includes(q) || (n.aliases && n.aliases.some(a => a.toLowerCase().includes(q))));
+
+        if (matches.length > 0) {
+          const ids = new Set(matches.map(n => n.id));
+          node.classed("selected", n => ids.has(n.id));
+          node.classed("dimmed", n => !ids.has(n.id));
+
+          link.classed("highlighted", l => {
+            const srcId = typeof l.source === 'object' ? l.source.id : l.source;
+            const tgtId = typeof l.target === 'object' ? l.target.id : l.target;
+            return ids.has(srcId) || ids.has(tgtId);
+          });
+          link.classed("dimmed", l => {
+            const srcId = typeof l.source === 'object' ? l.source.id : l.source;
+            const tgtId = typeof l.target === 'object' ? l.target.id : l.target;
+            return !ids.has(srcId) && !ids.has(tgtId);
+          });
+          searchError.style.display = "none";
+        } else {
+          clearSelection();
+          searchError.style.display = "block";
+          searchError.textContent = "No visible entities match this name.";
+        }
+      });
+
+      // ═══════════════════════════════════════════════════════════════════════════
+      // NATURAL LANGUAGE QUERY SYSTEM
+      // ═══════════════════════════════════════════════════════════════════════════
+      const queryBtn = document.getElementById("query-btn");
+      if (queryBtn) {
+        queryBtn.addEventListener("click", () => {
+          const query = document.getElementById("query-input").value.trim().toLowerCase();
+          const answerBox = document.getElementById("query-answer") || (() => {
+            const box = document.createElement("div");
+            box.id = "query-answer";
+            box.style.marginTop = "15px";
+            box.style.padding = "10px";
+            box.style.background = "#1e2430";
+            box.style.border = "1px solid var(--border)";
+            box.style.borderRadius = "4px";
+            box.style.fontSize = "13px";
+            box.style.color = "#a0aabf";
+            box.style.display = "none";
+            document.querySelector(".query-section").appendChild(box);
+            return box;
+          })();
+
+          if (!query) { answerBox.style.display = "none"; return; }
+
+          let matchedNodes = nodes.filter(n => query.includes(n.label.toLowerCase()));
+          nodes.forEach(n => {
+            if (!matchedNodes.includes(n) && n.aliases && n.aliases.some(a => query.includes(a.toLowerCase()))) {
+              matchedNodes.push(n);
+            }
+          });
+
+          if (matchedNodes.length === 0) {
+            answerBox.style.display = "block";
+            answerBox.innerHTML = `<strong>Error:</strong> No entities matching your query were found in the graph.`;
+            clearSelection();
+            return;
+          }
+
+          if (matchedNodes.length === 1) { selectNode(matchedNodes[0]); }
+          else {
+            const ids = new Set(matchedNodes.map(n => n.id));
+            node.classed("selected", n => ids.has(n.id));
+            node.classed("dimmed", n => !ids.has(n.id));
+            link.classed("highlighted", false);
+            link.classed("dimmed", true);
+          }
+
+          let relMap = {
+            "LOVE": ["love", "like", "care", "affection", "romantic"],
+            "FRIENDSHIP": ["friend", "close", "buddy", "pal"],
+            "FAMILY": ["mother", "father", "son", "daughter", "brother", "sister", "parent", "related"],
+            "WORK": ["employ", "work", "boss", "colleague", "lead", "head", "manager"],
+            "DATE": ["date", "marry", "partner", "boyfriend", "girlfriend"],
+            "LOCATION": ["live", "born", "headquarter", "locate"]
+          };
+
+          let relKeywords = [];
+          for (let [cat, terms] of Object.entries(relMap)) {
+            if (terms.some(t => query.includes(t))) relKeywords.push(cat.toLowerCase(), ...terms);
+          }
+          let matchedNames = new Set();
+          matchedNodes.forEach(n => {
+            matchedNames.add(n.label.toLowerCase());
+            if (n.aliases) n.aliases.forEach(a => matchedNames.add(a.toLowerCase()));
+          });
+
+          let queryWords = query.replace(/[?.,]/g, "").split(/\s+/).filter(w =>
+            w.length > 2 &&
+            !["who", "what", "where", "when", "how", "does", "with", "from", "this", "that", "the", "and", "are", "have", "has"].includes(w) &&
+            !Array.from(matchedNames).some(name => name.includes(w) || w.includes(name))
+          );
+          relKeywords.push(...queryWords);
+
+          let relevantLinks = links.filter(l => {
+            const sid = typeof l.source === "object" ? l.source.id : l.source;
+            const tid = typeof l.target === "object" ? l.target.id : l.target;
+            return matchedNodes.some(n => n.id === sid || n.id === tid);
+          });
+
+          if (relevantLinks.length === 0) {
+            answerBox.style.display = "block";
+            answerBox.innerHTML = `<strong>${matchedNodes.map(n => n.label).join(", ")}</strong> has no relationships.`;
+            return;
+          }
+
+          // Only filter by relationship keywords if they explicitly requested a verb/relationship not part of the name
+          let bestLinks = relevantLinks;
+          if (relKeywords.length > 0) {
+            let filtered = relevantLinks.filter(l => {
+              let lbl = (l.label || "").toLowerCase();
+              return relKeywords.some(kw => lbl.includes(kw));
+            });
+            if (filtered.length > 0) bestLinks = filtered;
+          }
+
+          if (bestLinks.length > 0) {
+            link.classed("highlighted", l => bestLinks.includes(l));
+            link.classed("dimmed", l => !bestLinks.includes(l));
+          }
+
+          let resultsHTML = "";
+
+          matchedNodes.forEach(mNode => {
+            resultsHTML += `<div style="margin-bottom: 15px;">`;
+            resultsHTML += `<strong style="color:var(--c-case); font-size:15px; display:inline-block; border-bottom: 1px solid #336; padding-bottom: 3px; margin-bottom: 5px; width:100%;">${mNode.label}</strong>`;
+            resultsHTML += `<ul style="margin-top:2px; margin-bottom:0; padding-left:20px; line-height: 1.6; list-style-type: square;">`;
+
+            let formatType = mNode.type ? mNode.type.charAt(0).toUpperCase() + mNode.type.slice(1).toLowerCase() : "Entity";
+            resultsHTML += `<li><strong>Type:</strong> ${formatType}</li>`;
+
+            let nodeLinks = bestLinks.filter(l => {
+              const sid = typeof l.source === "object" ? l.source.id : l.source;
+              const tid = typeof l.target === "object" ? l.target.id : l.target;
+              return sid === mNode.id || tid === mNode.id;
+            });
+
+            nodeLinks.forEach(l => {
+              const sid = typeof l.source === "object" ? l.source.id : l.source;
+              const tid = typeof l.target === "object" ? l.target.id : l.target;
+              const sNode = nodes.find(n => n.id === sid);
+              const tNode = nodes.find(n => n.id === tid);
+
+              if (!sNode || !tNode) return;
+
+              let isForward = sNode.id === mNode.id;
+              let otherNode = isForward ? tNode : sNode;
+              let oName = otherNode.label;
+              if (otherNode.aliases && otherNode.aliases.length > 0) {
+                oName += ` (${otherNode.aliases[0]})`;
+              }
+
+              let lbl = (l.label || "").toLowerCase().replace(/_/g, " ");
+              let resultStr = "";
+
+              if (isForward) {
+                resultStr = `${lbl.charAt(0).toUpperCase() + lbl.slice(1)} ${oName}`;
+              } else {
+                let isMale = ["steven", "conrad", "jeremiah", "brother", "boy", "man", "son"].some(n => mNode.label.toLowerCase().includes(n));
+                let isFemale = ["belly", "isabel", "laurel", "susannah", "sister", "mother", "girl", "woman", "daughter"].some(n => mNode.label.toLowerCase().includes(n));
+
+                if (lbl === "mother of" || lbl === "father of" || lbl === "parent of") {
+                  resultStr = (isMale ? "Son of " : (isFemale ? "Daughter of " : "Child of ")) + oName;
+                } else if (lbl.includes("friend")) {
+                  resultStr = `Friend of ${oName}`;
+                } else if (lbl.includes("brother of") || lbl.includes("sister of") || lbl.includes("sibling of")) {
+                  resultStr = (isMale ? "Brother of " : (isFemale ? "Sister of " : "Sibling of ")) + oName;
+                } else {
+                  resultStr = `${oName} ${lbl} them`;
+                  resultStr = resultStr.charAt(0).toUpperCase() + resultStr.slice(1);
+                }
+              }
+
+              resultsHTML += `<li>${resultStr}</li>`;
+            });
+
+            resultsHTML += `</ul></div>`;
+          });
+
+          answerBox.style.display = "block";
+          answerBox.innerHTML = resultsHTML;
+        });
+      }
+
+      // ═══════════════════════════════════════════════════════════════════════════
+      // CONTROLS
+      // ═══════════════════════════════════════════════════════════════════════════
+      document.getElementById("link-distance").addEventListener("input", e => {
+        simulation.force("link").distance(+e.target.value);
+        simulation.alpha(0.3).restart();
+      });
+
+      document.getElementById("charge").addEventListener("input", e => {
+        simulation.force("charge").strength(+e.target.value);
+        simulation.alpha(0.3).restart();
+      });
+
+      document.getElementById("btn-reset").addEventListener("click", () => {
+        svg.transition().duration(500).call(
+          zoom.transform, d3.zoomIdentity.translate(0, 0).scale(1)
+        );
+      });
+
+      document.getElementById("btn-all").addEventListener("click", () => {
+        hiddenTypes.clear();
+        document.querySelectorAll(".legend-item").forEach(el => el.classList.remove("disabled"));
+        applyTypeFilter();
+        clearSelection();
+      });
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // RESIZE
+    // ═══════════════════════════════════════════════════════════════════════════
+    window.addEventListener("resize", () => {
+      W = container.clientWidth;
+      H = container.clientHeight;
+      if (simulation) {
+        simulation.force("center", d3.forceCenter(W / 2, H / 2));
+        simulation.alpha(0.1).restart();
+      }
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // GENERATE BUTTON - API CALL
+    // ═══════════════════════════════════════════════════════════════════════════
+    const generateBtn = document.getElementById("generate-btn");
+    const inputText = document.getElementById("input-text");
+    const errorMsg = document.getElementById("error-msg");
+
+    generateBtn.addEventListener("click", async () => {
+      const text = inputText.value.trim();
+
+      // Validation
+      if (!text) {
+        errorMsg.textContent = "Please enter some text to generate a graph.";
+        errorMsg.classList.add("visible");
+        return;
+      }
+
+      if (text.length < 20) {
+        errorMsg.textContent = "Please enter at least 20 characters for meaningful results.";
+        errorMsg.classList.add("visible");
+        return;
+      }
+
+      // Clear error
+      errorMsg.classList.remove("visible");
+
+      // Show loading state
+      generateBtn.disabled = true;
+      generateBtn.classList.add("loading");
+      generateBtn.textContent = "Generating...";
+
+      try {
+        const response = await fetch("/generate", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ text })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to generate graph");
+        }
+
+        const data = await response.json();
+        console.log("Received graph data:", data);
+
+        if (!data.nodes || data.nodes.length === 0) {
+          throw new Error("No entities could be extracted from the text. Try a longer paragraph.");
+        }
+
+        // Update metadata indicators
+        document.getElementById("stat-method").textContent = data.extraction_method || "Unknown";
+        document.getElementById("stat-search").textContent = data.search_augmented ? "Yes" : "No";
+
+        initGraph(data);
+
+      } catch (err) {
+        errorMsg.textContent = err.message || "An error occurred while generating the graph.";
+        errorMsg.classList.add("visible");
+      } finally {
+        generateBtn.disabled = false;
+        generateBtn.classList.remove("loading");
+        generateBtn.textContent = "Generate Graph";
+      }
+    });
+
+    // Allow Enter key in textarea to not trigger button (Shift+Enter for new line)
+    inputText.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        generateBtn.click();
+      }
+    });
+
+  </script>
 </body>
+
 </html>
