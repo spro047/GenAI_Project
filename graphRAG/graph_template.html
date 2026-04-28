@@ -685,7 +685,9 @@ function performSearch() {
     const n = nodes[i];
     if (hiddenTypes.has(n.type)) continue;
 
-    const lowerLabel = n.label.toLowerCase();
+    const label = n.label || "";
+    const lowerLabel = label.toLowerCase();
+    
     if (lowerLabel === q) {
       exactMatch = n;
       break; // Found exact match, stop searching
