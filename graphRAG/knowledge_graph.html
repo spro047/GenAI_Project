@@ -141,6 +141,43 @@
       box-shadow: 0 0 0 3px rgba(0, 210, 255, 0.1);
     }
 
+    #file-upload {
+      width: 100%;
+      font-size: 11px;
+      color: var(--text-muted);
+      background: #0f131a;
+      padding: 8px;
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: 'IBM Plex Sans', sans-serif;
+      transition: all 0.2s;
+    }
+
+    #file-upload:hover {
+      border-color: var(--accent);
+      background: rgba(0, 210, 255, 0.05);
+    }
+
+    #file-upload::file-selector-button {
+      background: var(--surface);
+      color: var(--accent);
+      border: 1px solid var(--border);
+      padding: 4px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      text-transform: uppercase;
+      margin-right: 10px;
+      transition: all 0.2s;
+    }
+
+    #file-upload::file-selector-button:hover {
+      background: var(--accent);
+      color: #000;
+    }
+
     .generate-btn {
       padding: 14px;
       border-radius: 8px;
@@ -387,7 +424,7 @@
 
       <div class="input-section">
         <div class="sidebar-label">Input Text or Upload .txt</div>
-        <input type="file" id="file-upload" accept=".txt" style="font-size: 11px; color: var(--text-muted); background: #0f131a; padding: 8px; border: 1px dashed var(--border); border-radius: 6px; cursor: pointer; font-family: 'IBM Plex Sans', sans-serif; margin-bottom: 8px;">
+        <input type="file" id="file-upload" accept=".txt">
         <textarea id="input-text"
           placeholder="Paste your paragraph here to extract entities and relationships..."></textarea>
         <div id="error-msg" class="error-msg"></div>
