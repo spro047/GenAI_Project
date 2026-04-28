@@ -349,8 +349,12 @@
     </div>
 
     <div class="sidebar-section">
-      <div class="sidebar-label">Entity Types</div>
-      <div id="legend"></div>
+      <div class="sidebar-label" style="display:flex; justify-content:space-between; align-items:center;">
+        <span>Filter by Type</span>
+        <button id="btn-clear-filters" style="font-size:11px; padding:2px 6px; background:transparent; border:1px solid #556; color:#aab; cursor:pointer; border-radius:3px;">Clear Filters</button>
+      </div>
+      <div id="filter-state" style="font-size:12px; color:var(--text-muted); margin-bottom:8px; font-style:italic;">Showing: All</div>
+      <div id="legend" style="display:flex; flex-direction:column; gap:5px;"></div>
     </div>
 
     <div class="sidebar-section">
@@ -371,7 +375,6 @@
         </div>
         <div class="btn-row">
           <button id="btn-reset">Reset zoom</button>
-          <button id="btn-all">Show all</button>
         </div>
       </div>
     </div>
@@ -406,11 +409,16 @@ const GRAPH_DATA = GRAPH_DATA_PLACEHOLDER;
 const COLOR_MAP = {
   ORGANIZATION: "#4ECDC4",
   PERSON:       "#FF6B6B",
+  LOCATION:     "#34d399",
+  EVENT:        "#fb923c",
+  OBJECT:       "#fde047",
+  CONCEPT:      "#86efac",
+  PRODUCT:      "#f97316",
   LEGISLATION:  "#60a5fa",
   LEGAL_CASE:   "#FBBF24",
-  CONCEPT:      "#86efac",
   GOVERNMENT:   "#c084fc",
-  AI_SYSTEM:    "#fb923c",
+  AI_SYSTEM:    "#a78bfa",
+  TECHNOLOGY:   "#e879f9",
   OTHER:        "#94a3b8",
 };
 
@@ -604,28 +612,76 @@ nodes.forEach(n => { typeCounts[n.type] = (typeCounts[n.type] || 0) + 1; });
 
 const hiddenTypes = new Set();
 const legendEl = document.getElementById("legend");
+const filterStateEl = document.getElementById("filter-state");
+legendEl.innerHTML = '';
 
-Object.entries(COLOR_MAP).forEach(([type, color]) => {
-  if (!typeCounts[type]) return;
-  const item = document.createElement("div");
+function updateFilterState() {
+  if (!filterStateEl) return;
+  const totalCheckboxes = document.querySelectorAll("#legend input[type='checkbox']").length;
+  const visibleCount = totalCheckboxes - hiddenTypes.size;
+  
+  if (hiddenTypes.size === 0) filterStateEl.textContent = "Showing: All";
+  else if (visibleCount === 0) filterStateEl.textContent = "Showing: None";
+  else if (visibleCount === 1) {
+    let activeCb = Array.from(document.querySelectorAll("#legend input[type='checkbox']")).find(cb => cb.checked);
+    filterStateEl.textContent = `Showing: ${activeCb ? activeCb.value : ''}`;
+  } else {
+    filterStateEl.textContent = `Showing: ${visibleCount} types`;
+  }
+}
+
+// Ensure these required ones are exactly displayed in checkboxes
+const CORE_TYPES = ["PERSON", "CONCEPT", "LOCATION", "EVENT", "OBJECT", "ORGANIZATION"];
+const typesToRender = Array.from(new Set([...Object.keys(typeCounts), ...CORE_TYPES]));
+
+typesToRender.forEach(type => {
+  const color = COLOR_MAP[type] || COLOR_MAP.OTHER;
+  const count = typeCounts[type] || 0;
+  
+  const item = document.createElement("label");
   item.className = "legend-item";
+  item.style.display = "flex";
+  item.style.alignItems = "center";
+  item.style.cursor = "pointer";
+  item.style.padding = "2px 0";
+
+  const isChecked = !hiddenTypes.has(type);
+
   item.innerHTML = `
-    <div class="legend-dot" style="background:${color}"></div>
-    <span class="legend-name">${type}</span>
-    <span class="legend-count">${typeCounts[type]}</span>
+    <input type="checkbox" value="${type}" ${isChecked ? 'checked' : ''} style="margin-right: 8px; cursor: pointer;">
+    <div class="legend-dot" style="background:${color}; width:10px; height:10px; min-width:10px; border-radius:50%; margin-right:6px; display:inline-block;"></div>
+    <span class="legend-name" style="flex:1;">${type}</span>
+    <span class="legend-count" style="color:var(--text-muted); font-size:11px;">(${count})</span>
   `;
-  item.addEventListener("click", () => {
-    if (hiddenTypes.has(type)) {
-      hiddenTypes.delete(type);
-      item.classList.remove("disabled");
-    } else {
-      hiddenTypes.add(type);
-      item.classList.add("disabled");
-    }
+
+  const checkbox = item.querySelector("input");
+  checkbox.addEventListener("change", (e) => {
+    if (e.target.checked) hiddenTypes.delete(type);
+    else hiddenTypes.add(type);
+
     applyTypeFilter();
+    updateFilterState();
+    
+    // Reprocess search dynamically over new filtered subset
+    document.getElementById("search-form").dispatchEvent(new Event("submit"));
   });
+
   legendEl.appendChild(item);
 });
+
+updateFilterState();
+
+const btnClearFilters = document.getElementById("btn-clear-filters");
+if (btnClearFilters) {
+  btnClearFilters.addEventListener("click", () => {
+    hiddenTypes.clear();
+    document.querySelectorAll("#legend input[type='checkbox']").forEach(cb => cb.checked = true);
+    applyTypeFilter();
+    updateFilterState();
+    clearSelection();
+    document.getElementById("search-form").dispatchEvent(new Event("submit"));
+  });
+}
 
 function applyTypeFilter() {
   node.style("display", d => hiddenTypes.has(d.type) ? "none" : null);
@@ -743,12 +799,7 @@ document.getElementById("btn-reset").addEventListener("click", () => {
   );
 });
 
-document.getElementById("btn-all").addEventListener("click", () => {
-  hiddenTypes.clear();
-  document.querySelectorAll(".legend-item").forEach(el => el.classList.remove("disabled"));
-  applyTypeFilter();
-  clearSelection();
-});
+// Using explicit clear-filters button instead now
 
 // ═══════════════════════════════════════════════════════════════════════════
 // STATS

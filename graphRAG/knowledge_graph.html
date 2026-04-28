@@ -430,13 +430,14 @@
       ORGANIZATION: "#4ECDC4",
       PERSON: "#FF6B6B",
       LOCATION: "#34d399",
-      PRODUCT: "#f97316",
-      AI_MODEL: "#a78bfa",
       EVENT: "#fb923c",
+      OBJECT: "#fde047",
+      CONCEPT: "#86efac",
+      PRODUCT: "#f97316",
       LEGISLATION: "#60a5fa",
       LEGAL_CASE: "#FBBF24",
-      CONCEPT: "#86efac",
       GOVERNMENT: "#c084fc",
+      AI_MODEL: "#a78bfa",
       TECHNOLOGY: "#e879f9",
       OTHER: "#94a3b8",
     };
@@ -817,20 +818,27 @@
 
       function updateFilterState() {
         if (!filterStateEl) return;
-        const totalTypes = Object.keys(typeCounts).length;
-        const visibleCount = totalTypes - hiddenTypes.size;
+        const totalCheckboxes = document.querySelectorAll("#legend input[type='checkbox']").length;
+        const visibleCount = totalCheckboxes - hiddenTypes.size;
+        
         if (hiddenTypes.size === 0) filterStateEl.textContent = "Showing: All";
         else if (visibleCount === 0) filterStateEl.textContent = "Showing: None";
         else if (visibleCount === 1) {
-          let activeType = Object.keys(typeCounts).find(t => !hiddenTypes.has(t));
-          filterStateEl.textContent = `Showing: ${activeType}`;
+          let activeCb = Array.from(document.querySelectorAll("#legend input[type='checkbox']")).find(cb => cb.checked);
+          filterStateEl.textContent = `Showing: ${activeCb ? activeCb.value : ''}`;
         } else {
           filterStateEl.textContent = `Showing: ${visibleCount} types`;
         }
       }
 
-      Object.entries(COLOR_MAP).forEach(([type, color]) => {
-        if (!typeCounts[type]) return;
+      // Ensure these required ones are exactly displayed in checkboxes
+      const CORE_TYPES = ["PERSON", "CONCEPT", "LOCATION", "EVENT", "OBJECT", "ORGANIZATION"];
+      const typesToRender = Array.from(new Set([...Object.keys(typeCounts), ...CORE_TYPES]));
+
+      typesToRender.forEach(type => {
+        const color = COLOR_MAP[type] || COLOR_MAP.OTHER;
+        const count = typeCounts[type] || 0;
+        
         const item = document.createElement("label");
         item.className = "legend-item";
         item.style.display = "flex";
@@ -838,14 +846,13 @@
         item.style.cursor = "pointer";
         item.style.padding = "2px 0";
 
-        // Default checked
         const isChecked = !hiddenTypes.has(type);
 
         item.innerHTML = `
       <input type="checkbox" value="${type}" ${isChecked ? 'checked' : ''} style="margin-right: 8px; cursor: pointer;">
       <div class="legend-dot" style="background:${color}; width:10px; height:10px; min-width:10px; border-radius:50%; margin-right:6px; display:inline-block;"></div>
       <span class="legend-name" style="flex:1;">${type}</span>
-      <span class="legend-count" style="color:var(--text-muted); font-size:11px;">(${typeCounts[type]})</span>
+      <span class="legend-count" style="color:var(--text-muted); font-size:11px;">(${count})</span>
     `;
 
         const checkbox = item.querySelector("input");
@@ -857,7 +864,7 @@
           updateFilterState();
 
           // Reprocess search dynamically over new filtered subset
-          document.getElementById("search").dispatchEvent(new Event("input"));
+          document.getElementById("search-form").dispatchEvent(new Event("submit"));
         });
 
         legendEl.appendChild(item);
@@ -872,7 +879,8 @@
           document.querySelectorAll("#legend input[type='checkbox']").forEach(cb => cb.checked = true);
           applyTypeFilter();
           updateFilterState();
-          document.getElementById("search").dispatchEvent(new Event("input"));
+          clearSelection();
+          document.getElementById("search-form").dispatchEvent(new Event("submit"));
         });
       }
 
