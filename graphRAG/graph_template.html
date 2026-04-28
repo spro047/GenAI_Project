@@ -139,8 +139,11 @@
   /* ── Search ──────────────────────────────────────────────────── */
   .search-wrap { padding: 12px 16px; border-bottom: 1px solid var(--border); }
 
+  .search-form { display: flex; gap: 8px; }
+
   input[type="search"] {
-    width: 100%;
+    flex: 1;
+    min-width: 0;
     background: var(--bg);
     border: 1px solid var(--border);
     border-radius: 6px;
@@ -154,6 +157,18 @@
 
   input[type="search"]:focus { border-color: var(--accent); }
   input[type="search"]::placeholder { color: var(--text-muted); }
+
+  #btn-search, #btn-clear {
+    flex: 0 0 auto;
+  }
+
+  .search-feedback {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 11px;
+    color: var(--c-person);
+    margin-top: 8px;
+    display: none;
+  }
 
   /* ── Controls ────────────────────────────────────────────────── */
   .controls { padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
@@ -325,12 +340,21 @@
   <aside class="sidebar">
 
     <div class="search-wrap">
-      <input type="search" id="search" placeholder="Search nodes…">
+      <form id="search-form" class="search-form">
+        <input type="search" id="search" placeholder="Search nodes…">
+        <button type="submit" id="btn-search">Search</button>
+        <button type="button" id="btn-clear">Clear</button>
+      </form>
+      <div id="search-feedback" class="search-feedback">No node found</div>
     </div>
 
     <div class="sidebar-section">
-      <div class="sidebar-label">Entity Types</div>
-      <div id="legend"></div>
+      <div class="sidebar-label" style="display:flex; justify-content:space-between; align-items:center;">
+        <span>Filter by Type</span>
+        <button id="btn-clear-filters" style="font-size:11px; padding:2px 6px; background:transparent; border:1px solid #556; color:#aab; cursor:pointer; border-radius:3px;">Clear Filters</button>
+      </div>
+      <div id="filter-state" style="font-size:12px; color:var(--text-muted); margin-bottom:8px; font-style:italic;">Showing: All</div>
+      <div id="legend" style="display:flex; flex-direction:column; gap:5px;"></div>
     </div>
 
     <div class="sidebar-section">
@@ -351,7 +375,6 @@
         </div>
         <div class="btn-row">
           <button id="btn-reset">Reset zoom</button>
-          <button id="btn-all">Show all</button>
         </div>
       </div>
     </div>
@@ -386,11 +409,16 @@ const GRAPH_DATA = GRAPH_DATA_PLACEHOLDER;
 const COLOR_MAP = {
   ORGANIZATION: "#4ECDC4",
   PERSON:       "#FF6B6B",
+  LOCATION:     "#34d399",
+  EVENT:        "#fb923c",
+  OBJECT:       "#fde047",
+  CONCEPT:      "#86efac",
+  PRODUCT:      "#f97316",
   LEGISLATION:  "#60a5fa",
   LEGAL_CASE:   "#FBBF24",
-  CONCEPT:      "#86efac",
   GOVERNMENT:   "#c084fc",
-  AI_SYSTEM:    "#fb923c",
+  AI_SYSTEM:    "#a78bfa",
+  TECHNOLOGY:   "#e879f9",
   OTHER:        "#94a3b8",
 };
 
@@ -584,28 +612,76 @@ nodes.forEach(n => { typeCounts[n.type] = (typeCounts[n.type] || 0) + 1; });
 
 const hiddenTypes = new Set();
 const legendEl = document.getElementById("legend");
+const filterStateEl = document.getElementById("filter-state");
+legendEl.innerHTML = '';
 
-Object.entries(COLOR_MAP).forEach(([type, color]) => {
-  if (!typeCounts[type]) return;
-  const item = document.createElement("div");
+function updateFilterState() {
+  if (!filterStateEl) return;
+  const totalCheckboxes = document.querySelectorAll("#legend input[type='checkbox']").length;
+  const visibleCount = totalCheckboxes - hiddenTypes.size;
+  
+  if (hiddenTypes.size === 0) filterStateEl.textContent = "Showing: All";
+  else if (visibleCount === 0) filterStateEl.textContent = "Showing: None";
+  else if (visibleCount === 1) {
+    let activeCb = Array.from(document.querySelectorAll("#legend input[type='checkbox']")).find(cb => cb.checked);
+    filterStateEl.textContent = `Showing: ${activeCb ? activeCb.value : ''}`;
+  } else {
+    filterStateEl.textContent = `Showing: ${visibleCount} types`;
+  }
+}
+
+// Ensure these required ones are exactly displayed in checkboxes
+const CORE_TYPES = ["PERSON", "CONCEPT", "LOCATION", "EVENT", "OBJECT", "ORGANIZATION"];
+const typesToRender = Array.from(new Set([...Object.keys(typeCounts), ...CORE_TYPES]));
+
+typesToRender.forEach(type => {
+  const color = COLOR_MAP[type] || COLOR_MAP.OTHER;
+  const count = typeCounts[type] || 0;
+  
+  const item = document.createElement("label");
   item.className = "legend-item";
+  item.style.display = "flex";
+  item.style.alignItems = "center";
+  item.style.cursor = "pointer";
+  item.style.padding = "2px 0";
+
+  const isChecked = !hiddenTypes.has(type);
+
   item.innerHTML = `
-    <div class="legend-dot" style="background:${color}"></div>
-    <span class="legend-name">${type}</span>
-    <span class="legend-count">${typeCounts[type]}</span>
+    <input type="checkbox" value="${type}" ${isChecked ? 'checked' : ''} style="margin-right: 8px; cursor: pointer;">
+    <div class="legend-dot" style="background:${color}; width:10px; height:10px; min-width:10px; border-radius:50%; margin-right:6px; display:inline-block;"></div>
+    <span class="legend-name" style="flex:1;">${type}</span>
+    <span class="legend-count" style="color:var(--text-muted); font-size:11px;">(${count})</span>
   `;
-  item.addEventListener("click", () => {
-    if (hiddenTypes.has(type)) {
-      hiddenTypes.delete(type);
-      item.classList.remove("disabled");
-    } else {
-      hiddenTypes.add(type);
-      item.classList.add("disabled");
-    }
+
+  const checkbox = item.querySelector("input");
+  checkbox.addEventListener("change", (e) => {
+    if (e.target.checked) hiddenTypes.delete(type);
+    else hiddenTypes.add(type);
+
     applyTypeFilter();
+    updateFilterState();
+    
+    // Reprocess search dynamically over new filtered subset
+    document.getElementById("search-form").dispatchEvent(new Event("submit"));
   });
+
   legendEl.appendChild(item);
 });
+
+updateFilterState();
+
+const btnClearFilters = document.getElementById("btn-clear-filters");
+if (btnClearFilters) {
+  btnClearFilters.addEventListener("click", () => {
+    hiddenTypes.clear();
+    document.querySelectorAll("#legend input[type='checkbox']").forEach(cb => cb.checked = true);
+    applyTypeFilter();
+    updateFilterState();
+    clearSelection();
+    document.getElementById("search-form").dispatchEvent(new Event("submit"));
+  });
+}
 
 function applyTypeFilter() {
   node.style("display", d => hiddenTypes.has(d.type) ? "none" : null);
@@ -619,24 +695,102 @@ function applyTypeFilter() {
 // ═══════════════════════════════════════════════════════════════════════════
 // SEARCH
 // ═══════════════════════════════════════════════════════════════════════════
-document.getElementById("search").addEventListener("input", e => {
-  const q = e.target.value.toLowerCase().trim();
-  if (!q) { clearSelection(); return; }
-  const match = nodes.find(n => n.label.toLowerCase().includes(q));
-  if (match) selectNode(match);
+const searchForm = document.getElementById("search-form");
+const searchInput = document.getElementById("search");
+const searchFeedback = document.getElementById("search-feedback");
+const btnClear = document.getElementById("btn-clear");
+
+searchForm.addEventListener("submit", e => {
+  e.preventDefault();
+  performSearch();
 });
+
+btnClear.addEventListener("click", () => {
+  searchInput.value = "";
+  searchFeedback.style.display = "none";
+  clearSelection();
+  // Return to default view (reset zoom/pan)
+  svg.transition().duration(500).call(
+    zoom.transform, d3.zoomIdentity.translate(0, 0).scale(1)
+  );
+});
+
+// Detect clear "X" button click or backspace clearing the input
+searchInput.addEventListener("input", e => {
+  if (e.target.value.trim() === "") {
+    searchFeedback.style.display = "none";
+    clearSelection();
+  }
+});
+
+function performSearch() {
+  const q = searchInput.value.toLowerCase().trim();
+  if (!q) { 
+    clearSelection(); 
+    searchFeedback.style.display = "none";
+    return; 
+  }
+  
+  // Filter by hidden types to ensure we only search visible nodes
+  searchFeedback.style.display = "none";
+
+  let exactMatch = null;
+  let partialMatch = null;
+
+  for (let i = 0; i < nodes.length; i++) {
+    const n = nodes[i];
+    if (hiddenTypes.has(n.type)) continue;
+
+    const label = n.label || "";
+    const lowerLabel = label.toLowerCase();
+    
+    if (lowerLabel === q) {
+      exactMatch = n;
+      break; // Found exact match, stop searching
+    } else if (!partialMatch && lowerLabel.includes(q)) {
+      partialMatch = n;
+    }
+  }
+
+  const match = exactMatch || partialMatch;
+
+  if (match) {
+    selectNode(match);
+    
+    // Zoom and center on the matched node
+    const scale = 1.5; // Zoom level
+    const x = W / 2 - match.x * scale;
+    const y = H / 2 - match.y * scale;
+    
+    svg.transition().duration(750).call(
+      zoom.transform, 
+      d3.zoomIdentity.translate(x, y).scale(scale)
+    );
+  } else {
+    clearSelection();
+    searchFeedback.style.display = "block";
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CONTROLS
 // ═══════════════════════════════════════════════════════════════════════════
 document.getElementById("link-distance").addEventListener("input", e => {
-  simulation.force("link").distance(+e.target.value);
-  simulation.alpha(0.3).restart();
+  const val = +e.target.value;
+  simulation.force("link").distance(d => val);
+  simulation.alpha(0.5).restart();
+});
+document.getElementById("link-distance").addEventListener("change", e => {
+  simulation.alpha(1).restart();
 });
 
 document.getElementById("charge").addEventListener("input", e => {
-  simulation.force("charge").strength(+e.target.value);
-  simulation.alpha(0.3).restart();
+  const val = +e.target.value;
+  simulation.force("charge").strength(d => val);
+  simulation.alpha(0.5).restart();
+});
+document.getElementById("charge").addEventListener("change", e => {
+  simulation.alpha(1).restart();
 });
 
 document.getElementById("label-threshold").addEventListener("input", e => {
@@ -653,12 +807,7 @@ document.getElementById("btn-reset").addEventListener("click", () => {
   );
 });
 
-document.getElementById("btn-all").addEventListener("click", () => {
-  hiddenTypes.clear();
-  document.querySelectorAll(".legend-item").forEach(el => el.classList.remove("disabled"));
-  applyTypeFilter();
-  clearSelection();
-});
+// Using explicit clear-filters button instead now
 
 // ═══════════════════════════════════════════════════════════════════════════
 // STATS
