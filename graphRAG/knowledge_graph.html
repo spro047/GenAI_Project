@@ -294,6 +294,56 @@
     max-width: 300px;
     line-height: 1.6;
   }
+
+  /* ── Node Popup ────────────────────────────────────────────── */
+  #node-popup {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    width: 350px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+    z-index: 2000;
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .popup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 10px;
+  }
+  
+  .popup-title {
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--accent);
+  }
+  
+  .popup-close {
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 20px;
+    font-family: 'IBM Plex Mono', monospace;
+    transition: color 0.2s;
+  }
+  
+  .popup-close:hover {
+    color: var(--text);
+  }
+  
+  .popup-content {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text);
+  }
 </style>
 </head>
 <body>
@@ -380,6 +430,13 @@
       <g id="root"></g>
     </svg>
     <div id="tooltip"></div>
+    <div id="node-popup">
+      <div class="popup-header">
+        <div class="popup-title" id="popup-title">Node Name</div>
+        <div class="popup-close" id="popup-close">×</div>
+      </div>
+      <div class="popup-content" id="popup-content">Loading description...</div>
+    </div>
   </div>
 
 </div>
@@ -420,6 +477,13 @@ const root      = d3.select("#root");
 const tooltip   = document.getElementById("tooltip");
 const container = document.getElementById("graph-container");
 const emptyState = document.getElementById("empty-state");
+const nodePopup = document.getElementById("node-popup");
+const popupTitle = document.getElementById("popup-title");
+const popupContent = document.getElementById("popup-content");
+
+document.getElementById("popup-close").addEventListener("click", () => {
+  nodePopup.style.display = "none";
+});
 
 let W = container.clientWidth;
 let H = container.clientHeight;
@@ -599,6 +663,29 @@ function initGraph(data) {
       clearSelection();
     } else {
       selectNode(d);
+      
+      // Show popup and fetch description
+      popupTitle.textContent = d.label;
+      popupContent.textContent = "Loading description from LLM...";
+      nodePopup.style.display = "flex";
+      
+      const inputTextValue = document.getElementById("input-text").value;
+      fetch("/describe_node", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entity: d.label, text: inputTextValue })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.description) {
+          popupContent.textContent = data.description;
+        } else {
+          popupContent.textContent = "Could not fetch description.";
+        }
+      })
+      .catch(err => {
+        popupContent.textContent = "Error fetching description.";
+      });
     }
   });
 
@@ -641,6 +728,7 @@ function initGraph(data) {
     selectedNode = null;
     node.classed("selected dimmed", false);
     link.classed("highlighted dimmed", false);
+    if(nodePopup) nodePopup.style.display = "none";
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

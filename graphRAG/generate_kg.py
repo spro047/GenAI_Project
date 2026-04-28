@@ -762,6 +762,38 @@ def generate_graph_from_text(text: str) -> dict:
         "search_augmented": search_augmented
     }
 
+def describe_node(entity: str, context_text: str) -> str:
+    """Uses LLM to generate a short description of the entity based on the context."""
+    prompt = (
+        f"Based on the following text, provide a short, 1-2 sentence description of the entity '{entity}'. "
+        "Do not include formatting, just the text. If the entity is not mentioned or you cannot determine it, "
+        "say 'No detailed description available.'\n\n"
+        f"TEXT:\n{context_text}"
+    )
+    
+    if USE_LOCAL_GGUF:
+        out = call_local_gguf(prompt)
+        if out: return out.strip()
+        
+    if USE_LOCAL_LLM:
+        out = call_local_llm(prompt)
+        if out: return out.strip()
+        
+    if HF_API and HF_MODEL:
+        try:
+            from huggingface_hub import InferenceClient
+            client = InferenceClient(token=HF_API)
+            response = client.chat_completion(
+                messages=[{"role": "user", "content": prompt}],
+                model=HF_MODEL,
+                max_tokens=100
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            print(f"Describe node HF call failed: {e}")
+            pass
+            
+    return "Description could not be generated. Please check your LLM configuration."
 
 def compute_communities(nodes, edges):
     """Simple community detection based on connected components."""

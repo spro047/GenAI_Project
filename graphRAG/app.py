@@ -63,6 +63,21 @@ def query():
     answer = query_graph(q, nodes, links)
     return jsonify({"answer": answer})
 
+@app.route('/describe_node', methods=['POST'])
+def describe_node_route():
+    """
+    Query the LLM for a specific node's description.
+    Expected JSON body: { "entity": "Name", "text": "Original context..." }
+    """
+    from generate_kg import describe_node
+    data = request.get_json()
+    if not data or 'entity' not in data or 'text' not in data:
+        return jsonify({"error": "Missing required fields"}), 400
+    
+    entity = data['entity']
+    text = data['text']
+    desc = describe_node(entity, text)
+    return jsonify({"description": desc})
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
