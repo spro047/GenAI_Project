@@ -776,13 +776,21 @@ function performSearch() {
 // CONTROLS
 // ═══════════════════════════════════════════════════════════════════════════
 document.getElementById("link-distance").addEventListener("input", e => {
-  simulation.force("link").distance(+e.target.value);
-  simulation.alpha(0.3).restart();
+  const val = +e.target.value;
+  simulation.force("link").distance(d => val);
+  simulation.alpha(0.5).restart();
+});
+document.getElementById("link-distance").addEventListener("change", e => {
+  simulation.alpha(1).restart();
 });
 
 document.getElementById("charge").addEventListener("input", e => {
-  simulation.force("charge").strength(+e.target.value);
-  simulation.alpha(0.3).restart();
+  const val = +e.target.value;
+  simulation.force("charge").strength(d => val);
+  simulation.alpha(0.5).restart();
+});
+document.getElementById("charge").addEventListener("change", e => {
+  simulation.alpha(1).restart();
 });
 
 document.getElementById("label-threshold").addEventListener("input", e => {
