@@ -343,8 +343,13 @@
         <button id="generate-btn" class="generate-btn">Generate Graph</button>
       </div>
 
-      <div class="search-wrap">
-        <input type="search" id="search" placeholder="Search nodes by name...">
+      <div class="search-wrap" style="padding: 20px; border-bottom: 1px solid var(--border);">
+        <form id="search-form" class="search-form" style="display: flex; gap: 8px;">
+          <input type="search" id="search" placeholder="Search nodes by name..." style="flex: 1; min-width: 0; background: #0f131a; border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; font-family: 'IBM Plex Sans', sans-serif; font-size: 12px; color: var(--text); outline: none; transition: border-color 0.15s;">
+          <button type="submit" id="btn-search" class="generate-btn" style="flex: 0 0 auto; padding: 7px 10px; margin: 0; font-size: 11px; letter-spacing: normal; width: auto; background: var(--accent); color: #000;">Search</button>
+          <button type="button" id="btn-clear" class="generate-btn" style="flex: 0 0 auto; padding: 7px 10px; margin: 0; font-size: 11px; letter-spacing: normal; width: auto; background: transparent; color: var(--text-muted); border: 1px solid var(--border);">Clear</button>
+        </form>
+        <div id="search-feedback" class="search-feedback" style="font-family: 'IBM Plex Sans', sans-serif; font-size: 11px; color: #ff6b6b; margin-top: 8px; display: none;">No node found</div>
       </div>
 
       <div class="sidebar-section">
@@ -883,60 +888,77 @@
       // ═══════════════════════════════════════════════════════════════════════════
       // SEARCH
       // ═══════════════════════════════════════════════════════════════════════════
-      document.getElementById("search").addEventListener("input", e => {
-        const q = e.target.value.toLowerCase().trim();
+      const searchForm = document.getElementById("search-form");
+      const searchInput = document.getElementById("search");
+      const searchFeedback = document.getElementById("search-feedback");
+      const btnClear = document.getElementById("btn-clear");
 
-        const searchError = document.getElementById("search-error") || (() => {
-          const err = document.createElement("div");
-          err.id = "search-error";
-          err.style.color = "#ff6b6b";
-          err.style.fontSize = "12px";
-          err.style.marginTop = "5px";
-          err.style.display = "none";
-          e.target.parentNode.appendChild(err);
-          return err;
-        })();
+      searchForm.addEventListener("submit", e => {
+        e.preventDefault();
+        performSearch();
+      });
 
-        if (!q) {
+      btnClear.addEventListener("click", () => {
+        searchInput.value = "";
+        searchFeedback.style.display = "none";
+        clearSelection();
+        svg.transition().duration(500).call(
+          zoom.transform, d3.zoomIdentity.translate(0, 0).scale(1)
+        );
+      });
+
+      searchInput.addEventListener("input", e => {
+        if (e.target.value.trim() === "") {
+          searchFeedback.style.display = "none";
           clearSelection();
-          searchError.style.display = "none";
-          return;
-        }
-
-        // Ensure search applies on top of node filters
-        let activeNodes = nodes.filter(n => !hiddenTypes.has(n.type));
-        if (activeNodes.length === 0) {
-          clearSelection();
-          searchError.style.display = "block";
-          searchError.textContent = "No entities are visible in the selected filters.";
-          return;
-        }
-
-        // Standard node lookup isolated strictly to visible entities globally matching queries
-        const matches = activeNodes.filter(n => n.label.toLowerCase().includes(q) || (n.aliases && n.aliases.some(a => a.toLowerCase().includes(q))));
-
-        if (matches.length > 0) {
-          const ids = new Set(matches.map(n => n.id));
-          node.classed("selected", n => ids.has(n.id));
-          node.classed("dimmed", n => !ids.has(n.id));
-
-          link.classed("highlighted", l => {
-            const srcId = typeof l.source === 'object' ? l.source.id : l.source;
-            const tgtId = typeof l.target === 'object' ? l.target.id : l.target;
-            return ids.has(srcId) || ids.has(tgtId);
-          });
-          link.classed("dimmed", l => {
-            const srcId = typeof l.source === 'object' ? l.source.id : l.source;
-            const tgtId = typeof l.target === 'object' ? l.target.id : l.target;
-            return !ids.has(srcId) && !ids.has(tgtId);
-          });
-          searchError.style.display = "none";
-        } else {
-          clearSelection();
-          searchError.style.display = "block";
-          searchError.textContent = "No visible entities match this name.";
         }
       });
+
+      function performSearch() {
+        const q = searchInput.value.toLowerCase().trim();
+        if (!q) {
+          clearSelection();
+          searchFeedback.style.display = "none";
+          return;
+        }
+
+        searchFeedback.style.display = "none";
+
+        let exactMatch = null;
+        let partialMatch = null;
+
+        for (let i = 0; i < nodes.length; i++) {
+          const n = nodes[i];
+          if (hiddenTypes.has(n.type)) continue;
+
+          const label = n.label || "";
+          const lowerLabel = label.toLowerCase();
+          
+          if (lowerLabel === q) {
+            exactMatch = n;
+            break;
+          } else if (!partialMatch && lowerLabel.includes(q)) {
+            partialMatch = n;
+          }
+        }
+
+        const match = exactMatch || partialMatch;
+
+        if (match) {
+          selectNode(match);
+          const scale = 1.5;
+          const x = W / 2 - match.x * scale;
+          const y = H / 2 - match.y * scale;
+          svg.transition().duration(750).call(
+            zoom.transform,
+            d3.zoomIdentity.translate(x, y).scale(scale)
+          );
+        } else {
+          clearSelection();
+          searchFeedback.style.display = "block";
+          searchFeedback.textContent = "No node found";
+        }
+      }
 
       // ═══════════════════════════════════════════════════════════════════════════
       // NATURAL LANGUAGE QUERY SYSTEM
