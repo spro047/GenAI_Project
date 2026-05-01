@@ -62,8 +62,9 @@ def query():
     q = data['query']
     nodes = data['nodes']
     links = data['links']
+    history = data.get('history', [])
     
-    answer = query_graph_rag(q, nodes, links)
+    answer = query_graph_rag(q, nodes, links, history)
     return jsonify({"answer": answer})
 
 @app.route('/describe_node', methods=['POST'])

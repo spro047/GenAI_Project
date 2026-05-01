@@ -898,44 +898,60 @@ def compute_communities(nodes, edges):
 def get_graph_context(query: str, nodes: list, links: list) -> str:
     """Retrieves relevant facts from the graph based on the query."""
     query = query.lower()
-    relevant_facts = []
     
-    # Identify mentioned nodes
-    mentioned_nodes = []
-    for node in nodes:
-        label = node['label'].lower()
-        if label in query:
-            mentioned_nodes.append(node)
-            
-    # If no nodes matched directly, try simple keyword match
-    if not mentioned_nodes:
-        # Check if query words match node labels partially
-        query_words = set(query.split())
-        for node in nodes:
-            node_words = set(node['label'].lower().split())
-            if query_words & node_words:
-                mentioned_nodes.append(node)
+    # Check for global summary keywords
+    global_keywords = ['summarize', 'summary', 'overall', 'entire', 'whole', 'graph']
+    is_global_query = any(kw in query for kw in global_keywords) and len(query.split()) < 10
 
-    # Collect relationships involving these nodes
-    seen_links = set()
-    for node in mentioned_nodes:
-        nid = node['id']
-        for link in links:
-            s_val = link['source']
-            t_val = link['target']
+    relevant_facts = []
+    mentioned_nodes = []
+
+    if is_global_query:
+        # For global queries, include all main entities and relationships
+        mentioned_nodes = nodes[:15] # Limit to top 15 to avoid context overflow
+        for link in links[:30]: # Limit to top 30 relationships
+            def get_label(id):
+                return next((n['label'] for n in nodes if n['id'] == id), "Unknown")
             
-            src_id = s_val['id'] if isinstance(s_val, dict) else s_val
-            tgt_id = t_val['id'] if isinstance(t_val, dict) else t_val
+            src_id = link['source']['id'] if isinstance(link['source'], dict) else link['source']
+            tgt_id = link['target']['id'] if isinstance(link['target'], dict) else link['target']
             
-            if src_id == nid or tgt_id == nid:
-                # Get labels for context
-                def get_label(id):
-                    return next((n['label'] for n in nodes if n['id'] == id), "Unknown")
+            relevant_facts.append(f"{get_label(src_id)} {link['label']} {get_label(tgt_id)}")
+    else:
+        # Identify mentioned nodes
+        for node in nodes:
+            label = node['label'].lower()
+            if label in query:
+                mentioned_nodes.append(node)
                 
-                fact = f"{get_label(src_id)} {link['label']} {get_label(tgt_id)}"
-                if fact not in seen_links:
-                    relevant_facts.append(fact)
-                    seen_links.add(fact)
+        # If no nodes matched directly, try simple keyword match
+        if not mentioned_nodes:
+            # Check if query words match node labels partially
+            query_words = set(query.split())
+            for node in nodes:
+                node_words = set(node['label'].lower().split())
+                if query_words & node_words:
+                    mentioned_nodes.append(node)
+
+        # Collect relationships involving these nodes
+        seen_links = set()
+        for node in mentioned_nodes:
+            nid = node['id']
+            for link in links:
+                s_val = link['source']
+                t_val = link['target']
+                
+                src_id = s_val['id'] if isinstance(s_val, dict) else s_val
+                tgt_id = t_val['id'] if isinstance(t_val, dict) else t_val
+                
+                if src_id == nid or tgt_id == nid:
+                    def get_label(id):
+                        return next((n['label'] for n in nodes if n['id'] == id), "Unknown")
+                    
+                    fact = f"{get_label(src_id)} {link['label']} {get_label(tgt_id)}"
+                    if fact not in seen_links:
+                        relevant_facts.append(fact)
+                        seen_links.add(fact)
                     
     # Also include node descriptions for the mentioned entities
     node_contexts = []
@@ -950,24 +966,36 @@ def get_graph_context(query: str, nodes: list, links: list) -> str:
         
     return context
 
-def query_graph_rag(query: str, nodes: list, links: list) -> str:
-    """Uses GraphRAG to answer a user query based on the knowledge graph."""
+def query_graph_rag(query: str, nodes: list, links: list, history: list = None) -> str:
+    """Uses GraphRAG to answer a user query based on the knowledge graph and conversation history."""
     context = get_graph_context(query, nodes, links)
     
     if not context:
         return "I couldn't find any information about those entities in the current graph. Could you try adding more text to build the graph?"
 
+    # Format history for the prompt
+    history_str = ""
+    if history:
+        history_str = "CONVERSATION HISTORY:\n"
+        for msg in history[-5:]: # Last 5 messages for context
+            role = "User" if msg['role'] == 'user' else "AI"
+            history_str += f"{role}: {msg['content']}\n"
+        history_str += "\n"
+
     prompt = (
-        "You are an AI assistant answering questions based ONLY on the provided Knowledge Graph context.\n\n"
+        "You are an expert AI analyst and storyteller. Your task is to provide detailed, insightful answers based ONLY on the provided Knowledge Graph context.\n\n"
         "CONTEXT FROM GRAPH:\n"
         f"{context}\n\n"
+        f"{history_str}"
         "USER QUESTION:\n"
         f"{query}\n\n"
         "RULES:\n"
-        "1. Answer concisely based ONLY on the context provided.\n"
-        "2. If the relationship is not in the context, say you don't know.\n"
-        "3. Use the relationships to explain connections between characters or entities.\n\n"
-        "ANSWER:"
+        "1. Provide a detailed, natural-sounding response. Don't just list facts; explain the context and connections.\n"
+        "2. If the user asks a follow-up question, use the CONVERSATION HISTORY to maintain context.\n"
+        "3. Use the relationships in the graph to describe the 'why' and 'how' behind the connections.\n"
+        "4. If the information is not in the graph, politely state that the graph doesn't contain that specific detail.\n"
+        "5. Keep the tone professional but engaging.\n\n"
+        "DETAILED ANSWER:"
     )
 
     # Use the existing LLM infrastructure
@@ -986,7 +1014,7 @@ def query_graph_rag(query: str, nodes: list, links: list) -> str:
             response = client.chat_completion(
                 messages=[{"role": "user", "content": prompt}],
                 model=HF_MODEL,
-                max_tokens=250
+                max_tokens=500  # Increased for more detail
             )
             return response.choices[0].message.content.strip()
         except Exception as e:
