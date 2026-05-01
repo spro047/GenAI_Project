@@ -9,7 +9,7 @@ import os
 import json
 import argparse
 from flask import Flask, request, jsonify, send_from_directory
-from generate_kg import generate_graph_from_text
+from generate_kg import generate_graph_from_text, query_graph_rag, describe_node, index_text_in_vdb
 
 app = Flask(__name__, static_folder='.', static_url_path='')
 
@@ -42,6 +42,10 @@ def generate():
     
     try:
         result = generate_graph_from_text(text)
+        
+        # Index the text in the Vector Database as well
+        index_text_in_vdb(text)
+        
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -53,7 +57,6 @@ def query():
     Query the current graph data using GraphRAG.
     Expected JSON body: { "query": "question?", "nodes": [...], "links": [...] }
     """
-    from generate_kg import query_graph_rag
     data = request.get_json()
     
     if not data or 'query' not in data or 'nodes' not in data or 'links' not in data:
@@ -73,7 +76,6 @@ def describe_node_route():
     Query the LLM for a specific node's description.
     Expected JSON body: { "entity": "Name", "text": "Original context..." }
     """
-    from generate_kg import describe_node
     data = request.get_json()
     if not data or 'entity' not in data or 'text' not in data:
         return jsonify({"error": "Missing required fields"}), 400

@@ -16,6 +16,8 @@ import json
 import requests
 import re
 from collections import defaultdict
+import chromadb
+from chromadb.utils import embedding_functions
 from serpapi import GoogleSearch
 from dotenv import load_dotenv
 
@@ -39,6 +41,22 @@ _LOCAL_MODEL_INSTANCE = None
 
 # Fallback public model to try if the configured model path is not found
 FALLBACK_HF_MODEL = "Qwen/Qwen2.5-72B-Instruct"
+
+# ═══════════════════════════════════════════════════════════════════════════
+# VECTOR DATABASE (ChromaDB) INITIALIZATION
+# ═══════════════════════════════════════════════════════════════════════════
+try:
+    VDB_PATH = os.path.join(os.path.dirname(__file__), "vdb_storage")
+    vdb_client = chromadb.PersistentClient(path=VDB_PATH)
+    # Using DefaultEmbeddingFunction which uses SentenceTransformers 'all-MiniLM-L6-v2'
+    vdb_collection = vdb_client.get_or_create_collection(
+        name="knowledge_graph_chunks",
+        metadata={"hnsw:space": "cosine"}
+    )
+    print(f"Vector Database initialized at: {VDB_PATH}")
+except Exception as e:
+    print(f"Warning: Failed to initialize Vector Database: {e}")
+    vdb_collection = None
 
 
 def call_local_llm(text: str) -> str:
@@ -966,12 +984,61 @@ def get_graph_context(query: str, nodes: list, links: list) -> str:
         
     return context
 
-def query_graph_rag(query: str, nodes: list, links: list, history: list = None) -> str:
-    """Uses GraphRAG to answer a user query based on the knowledge graph and conversation history."""
-    context = get_graph_context(query, nodes, links)
+def get_vector_context(query: str, n_results: int = 3) -> str:
+    """Retrieves semantically relevant text chunks from the Vector Database."""
+    if not vdb_collection:
+        return ""
     
-    if not context:
-        return "I couldn't find any information about those entities in the current graph. Could you try adding more text to build the graph?"
+    try:
+        results = vdb_collection.query(
+            query_texts=[query],
+            n_results=n_results
+        )
+        
+        chunks = results.get('documents', [[]])[0]
+        if chunks:
+            return "RELEVANT TEXT CHUNKS:\n" + "\n---\n".join(chunks) + "\n"
+    except Exception as e:
+        print(f"Error querying Vector Database: {e}")
+    
+    return ""
+
+def index_text_in_vdb(text: str):
+    """Chunks text and stores it in the Vector Database."""
+    if not vdb_collection or not text:
+        return
+    
+    try:
+        # Simple chunking by paragraph or fixed length
+        paragraphs = [p.strip() for p in text.split('\n\n') if len(p.strip()) > 20]
+        
+        # If text is a single long block, chunk it by length
+        if len(paragraphs) <= 1 and len(text) > 800:
+            paragraphs = [text[i:i+800] for i in range(0, len(text), 600)]
+            
+        if not paragraphs:
+            return
+
+        # Add to collection
+        ids = [f"chunk_{re.sub(r'[^a-zA-Z0-9]', '', text[:10])}_{i}" for i in range(len(paragraphs))]
+        vdb_collection.upsert(
+            documents=paragraphs,
+            ids=ids
+        )
+        print(f"Indexed {len(paragraphs)} chunks in Vector Database.")
+    except Exception as e:
+        print(f"Error indexing in Vector Database: {e}")
+
+def query_graph_rag(query: str, nodes: list, links: list, history: list = None) -> str:
+    """Uses Hybrid RAG (Graph + Vector) to answer a user query."""
+    # 1. Structural context from Graph
+    graph_context = get_graph_context(query, nodes, links)
+    
+    # 2. Semantic context from Vector DB
+    vector_context = get_vector_context(query)
+    
+    if not graph_context and not vector_context:
+        return "I couldn't find any information about those entities in the graph or the indexed documents. Could you try adding more text to build the knowledge base?"
 
     # Format history for the prompt
     history_str = ""
@@ -983,18 +1050,19 @@ def query_graph_rag(query: str, nodes: list, links: list, history: list = None) 
         history_str += "\n"
 
     prompt = (
-        "You are an expert AI analyst and storyteller. Your task is to provide detailed, insightful answers based ONLY on the provided Knowledge Graph context.\n\n"
-        "CONTEXT FROM GRAPH:\n"
-        f"{context}\n\n"
+        "You are an expert AI analyst and storyteller. Your task is to provide detailed, insightful answers based on the provided Knowledge Graph facts AND relevant text chunks.\n\n"
+        "--- START CONTEXT ---\n"
+        f"{graph_context}\n"
+        f"{vector_context}\n"
+        "--- END CONTEXT ---\n\n"
         f"{history_str}"
         "USER QUESTION:\n"
         f"{query}\n\n"
         "RULES:\n"
-        "1. Provide a detailed, natural-sounding response. Don't just list facts; explain the context and connections.\n"
+        "1. Provide a detailed, natural-sounding response. Use the Graph Facts for structural relationships and the Text Chunks for narrative detail.\n"
         "2. If the user asks a follow-up question, use the CONVERSATION HISTORY to maintain context.\n"
         "3. Use the relationships in the graph to describe the 'why' and 'how' behind the connections.\n"
-        "4. If the information is not in the graph, politely state that the graph doesn't contain that specific detail.\n"
-        "5. Keep the tone professional but engaging.\n\n"
+        "4. If the information is not in the graph or text chunks, politely state that the knowledge base doesn't contain that specific detail.\n\n"
         "DETAILED ANSWER:"
     )
 
@@ -1014,7 +1082,7 @@ def query_graph_rag(query: str, nodes: list, links: list, history: list = None) 
             response = client.chat_completion(
                 messages=[{"role": "user", "content": prompt}],
                 model=HF_MODEL,
-                max_tokens=500  # Increased for more detail
+                max_tokens=1000  # Increased for more detail
             )
             return response.choices[0].message.content.strip()
         except Exception as e:
