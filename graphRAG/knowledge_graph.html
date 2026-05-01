@@ -114,6 +114,39 @@
       margin-bottom: 12px;
     }
 
+    /* ── Recents ─────────────────────────────────────────────────── */
+    .recent-item {
+      padding: 8px 12px;
+      margin-bottom: 8px;
+      background: #0f131a;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    
+    .recent-item:hover {
+      border-color: var(--accent);
+      background: rgba(0, 210, 255, 0.05);
+    }
+    
+    .recent-title {
+      font-size: 12px;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .recent-meta {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: 'IBM Plex Mono', monospace;
+    }
+
     /* ── Text Input ─────────────────────────────────────────────── */
     .input-section {
       padding: 20px;
@@ -650,6 +683,8 @@
     <!-- ── Sidebar ─────────────────────────────────────── -->
     <aside class="sidebar">
 
+
+
       <div class="input-section">
         <div class="sidebar-label">Input Text or Upload .txt</div>
         <input type="file" id="file-upload" accept=".txt">
@@ -696,6 +731,11 @@
             <button id="btn-all">Show all</button>
           </div>
         </div>
+      </div>
+
+      <div class="sidebar-section" id="recents-section" style="display: none;">
+        <div class="sidebar-label">Recent Graphs</div>
+        <div id="recents-list"></div>
       </div>
 
       <div class="sidebar-section">
@@ -1601,6 +1641,9 @@
         document.getElementById("stat-method").textContent = data.extraction_method || "Unknown";
         document.getElementById("stat-search").textContent = data.search_augmented ? "Yes" : "No";
 
+        // Save to recents
+        saveToRecents(text, data);
+
         initGraph(data);
 
       } catch (err) {
@@ -1620,6 +1663,83 @@
         generateBtn.click();
       }
     });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // RECENTS LOGIC
+    // ═══════════════════════════════════════════════════════════════════════════
+    function saveToRecents(text, data) {
+      let recents = JSON.parse(localStorage.getItem('recentGraphs') || '[]');
+      
+      // Create a short title from the text
+      const title = text.length > 30 ? text.substring(0, 30) + "..." : text;
+      
+      // Remove existing item if it has the exact same text to avoid duplicates
+      recents = recents.filter(item => item.text !== text);
+      
+      const newItem = {
+        id: Date.now().toString(),
+        title: title,
+        text: text,
+        date: new Date().toLocaleString(),
+        nodesCount: data.nodes.length,
+        data: data
+      };
+      
+      // Add to beginning
+      recents.unshift(newItem);
+      
+      // Keep only last 10
+      if (recents.length > 10) {
+        recents = recents.slice(0, 10);
+      }
+      
+      localStorage.setItem('recentGraphs', JSON.stringify(recents));
+      renderRecents();
+    }
+
+    function renderRecents() {
+      const recents = JSON.parse(localStorage.getItem('recentGraphs') || '[]');
+      const recentsSection = document.getElementById('recents-section');
+      const recentsList = document.getElementById('recents-list');
+      
+      if (recents.length === 0) {
+        recentsSection.style.display = 'none';
+        return;
+      }
+      
+      recentsSection.style.display = 'block';
+      recentsList.innerHTML = '';
+      
+      recents.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'recent-item';
+        div.innerHTML = `
+          <div class="recent-title">${item.title}</div>
+          <div class="recent-meta">${item.date} • ${item.nodesCount} nodes</div>
+        `;
+        
+        div.addEventListener('click', () => {
+          // Restore text
+          inputText.value = item.text;
+          
+          // Restore metadata
+          document.getElementById("stat-method").textContent = item.data.extraction_method || "Unknown";
+          document.getElementById("stat-search").textContent = item.data.search_augmented ? "Yes" : "No";
+          
+          // Render graph
+          initGraph(item.data);
+          
+          // Move to top of recents
+          saveToRecents(item.text, item.data);
+        });
+        
+        recentsList.appendChild(div);
+      });
+    }
+
+    // Initial render
+    renderRecents();
+
   </script>
 
   <div id="chatbot-container">
