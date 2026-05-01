@@ -895,40 +895,104 @@ def compute_communities(nodes, edges):
     return communities
 
 
-def query_graph(query: str, nodes: list, links: list) -> str:
-    """A simple query system to find answers in the graph data."""
+def get_graph_context(query: str, nodes: list, links: list) -> str:
+    """Retrieves relevant facts from the graph based on the query."""
     query = query.lower()
+    relevant_facts = []
     
-    # Helper to get node by ID
-    def get_node(nid):
-        return next((n for n in nodes if n['id'] == nid), None)
-
-    # 1. Search for direct entity matches
-    for link in links:
-        # link might have source/target as IDs or objects (from D3 simulation)
-        s_val = link['source']
-        t_val = link['target']
-        
-        src_id = s_val['id'] if isinstance(s_val, dict) else s_val
-        tgt_id = t_val['id'] if isinstance(t_val, dict) else t_val
-        
-        src_node = get_node(src_id)
-        tgt_node = get_node(tgt_id)
-        
-        if not src_node or not tgt_node: continue
-        
-        s = src_node['label'].lower()
-        t = tgt_node['label'].lower()
-        p = link['label'].lower()
-        
-        # Check if query mentions the subject/object AND relationship
-        # Or if it's a "who/what" question about one of the entities
-        if (s in query or t in query):
-            # Check for relationship match or question words
-            if p in query or any(w in query for w in ["who", "what", "where", "how", "tell", "show"]):
-                return f"According to the graph, {src_node['label']} {link['label']} {tgt_node['label']}."
+    # Identify mentioned nodes
+    mentioned_nodes = []
+    for node in nodes:
+        label = node['label'].lower()
+        if label in query:
+            mentioned_nodes.append(node)
             
-    return "I couldn't find a direct answer in the current graph. Try extracting more text or refining your query."
+    # If no nodes matched directly, try simple keyword match
+    if not mentioned_nodes:
+        # Check if query words match node labels partially
+        query_words = set(query.split())
+        for node in nodes:
+            node_words = set(node['label'].lower().split())
+            if query_words & node_words:
+                mentioned_nodes.append(node)
+
+    # Collect relationships involving these nodes
+    seen_links = set()
+    for node in mentioned_nodes:
+        nid = node['id']
+        for link in links:
+            s_val = link['source']
+            t_val = link['target']
+            
+            src_id = s_val['id'] if isinstance(s_val, dict) else s_val
+            tgt_id = t_val['id'] if isinstance(t_val, dict) else t_val
+            
+            if src_id == nid or tgt_id == nid:
+                # Get labels for context
+                def get_label(id):
+                    return next((n['label'] for n in nodes if n['id'] == id), "Unknown")
+                
+                fact = f"{get_label(src_id)} {link['label']} {get_label(tgt_id)}"
+                if fact not in seen_links:
+                    relevant_facts.append(fact)
+                    seen_links.add(fact)
+                    
+    # Also include node descriptions for the mentioned entities
+    node_contexts = []
+    for node in mentioned_nodes:
+        node_contexts.append(f"{node['label']}: {node.get('description', 'No description available.')}")
+
+    context = ""
+    if node_contexts:
+        context += "ENTITIES:\n" + "\n".join(node_contexts) + "\n\n"
+    if relevant_facts:
+        context += "RELATIONSHIPS:\n" + "\n".join(relevant_facts)
+        
+    return context
+
+def query_graph_rag(query: str, nodes: list, links: list) -> str:
+    """Uses GraphRAG to answer a user query based on the knowledge graph."""
+    context = get_graph_context(query, nodes, links)
+    
+    if not context:
+        return "I couldn't find any information about those entities in the current graph. Could you try adding more text to build the graph?"
+
+    prompt = (
+        "You are an AI assistant answering questions based ONLY on the provided Knowledge Graph context.\n\n"
+        "CONTEXT FROM GRAPH:\n"
+        f"{context}\n\n"
+        "USER QUESTION:\n"
+        f"{query}\n\n"
+        "RULES:\n"
+        "1. Answer concisely based ONLY on the context provided.\n"
+        "2. If the relationship is not in the context, say you don't know.\n"
+        "3. Use the relationships to explain connections between characters or entities.\n\n"
+        "ANSWER:"
+    )
+
+    # Use the existing LLM infrastructure
+    if USE_LOCAL_GGUF:
+        out = call_local_gguf(prompt)
+        if out: return out.strip()
+        
+    if USE_LOCAL_LLM:
+        out = call_local_llm(prompt)
+        if out: return out.strip()
+        
+    if HF_API and HF_MODEL:
+        try:
+            from huggingface_hub import InferenceClient
+            client = InferenceClient(token=HF_API)
+            response = client.chat_completion(
+                messages=[{"role": "user", "content": prompt}],
+                model=HF_MODEL,
+                max_tokens=250
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            print(f"GraphRAG HF call failed: {e}")
+            
+    return "I found the facts in the graph, but I'm having trouble connecting to the AI to generate a response. Please check your API keys."
 
 
 def main():
