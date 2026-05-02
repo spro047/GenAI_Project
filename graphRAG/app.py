@@ -9,7 +9,7 @@ import os
 import json
 import argparse
 from flask import Flask, request, jsonify, send_from_directory
-from generate_kg import generate_graph_from_text, query_graph_rag, describe_node, index_text_in_vdb
+from generate_kg import generate_graph_from_text, query_graph_rag, describe_node, index_text_in_vdb, delete_text_from_vdb
 
 app = Flask(__name__, static_folder='.', static_url_path='')
 
@@ -50,6 +50,26 @@ def generate():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+@app.route('/delete_graph', methods=['POST'])
+def delete_graph():
+    """
+    Deletes the chunks associated with the given text from the Vector Database.
+    Expected JSON body: { "text": "original input text..." }
+    """
+    data = request.get_json()
+    if not data or 'text' not in data:
+        return jsonify({"error": "Missing 'text' field"}), 400
+    
+    text = data['text'].strip()
+    if text:
+        try:
+            delete_text_from_vdb(text)
+            return jsonify({"status": "success"})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+    
+    return jsonify({"status": "ignored"})
 
 @app.route('/query', methods=['POST'])
 def query():

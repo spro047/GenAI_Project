@@ -1029,6 +1029,27 @@ def index_text_in_vdb(text: str):
     except Exception as e:
         print(f"Error indexing in Vector Database: {e}")
 
+def delete_text_from_vdb(text: str):
+    """Deletes chunks associated with the text from the Vector Database."""
+    if not vdb_collection or not text:
+        return
+    
+    try:
+        # Reconstruct the exact same chunk IDs used during indexing
+        paragraphs = [p.strip() for p in text.split('\n\n') if len(p.strip()) > 20]
+        if len(paragraphs) <= 1 and len(text) > 800:
+            paragraphs = [text[i:i+800] for i in range(0, len(text), 600)]
+            
+        if not paragraphs:
+            return
+
+        ids = [f"chunk_{re.sub(r'[^a-zA-Z0-9]', '', text[:10])}_{i}" for i in range(len(paragraphs))]
+        vdb_collection.delete(ids=ids)
+        print(f"Deleted {len(paragraphs)} chunks from Vector Database.")
+    except Exception as e:
+        print(f"Error deleting from Vector Database: {e}")
+
+
 def query_graph_rag(query: str, nodes: list, links: list, history: list = None) -> str:
     """Uses Hybrid RAG (Graph + Vector) to answer a user query."""
     # 1. Structural context from Graph

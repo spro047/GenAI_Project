@@ -126,11 +126,19 @@
       display: flex;
       flex-direction: column;
       gap: 4px;
+      position: relative;
     }
     
     .recent-item:hover {
       border-color: var(--accent);
       background: rgba(0, 210, 255, 0.05);
+    }
+
+    .recent-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
     }
     
     .recent-title {
@@ -139,6 +147,29 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      flex: 1;
+    }
+
+    .recent-delete {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 1;
+      padding: 0 4px;
+      display: none;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .recent-item:hover .recent-delete {
+      display: block;
+    }
+
+    .recent-delete:hover {
+      color: #ff6b6b;
+      background: rgba(255, 107, 107, 0.1);
     }
     
     .recent-meta {
@@ -738,17 +769,7 @@
         <div id="recents-list"></div>
       </div>
 
-      <div class="sidebar-section">
-        <div class="sidebar-label">Query System</div>
-        <div class="query-section">
-          <input type="text" id="query-input" placeholder="Ask a question (e.g. Who leads Fremen?)"
-            style="width: 100%; padding: 8px; border-radius: 4px; background: #0f131a; border: 1px solid var(--border); color: var(--text);">
-          <button id="query-btn" class="generate-btn"
-            style="background: var(--c-case); color: #000; margin-top: 10px; width: 100%;">Ask Graph</button>
-          <div id="query-answer"
-            style="margin-top: 15px; font-size: 13px; color: var(--accent); font-style: italic; display: none;"></div>
-        </div>
-      </div>
+
 
     </aside>
 
@@ -1363,169 +1384,6 @@
       }
 
       // ═══════════════════════════════════════════════════════════════════════════
-      // NATURAL LANGUAGE QUERY SYSTEM
-      // ═══════════════════════════════════════════════════════════════════════════
-      const queryBtn = document.getElementById("query-btn");
-      if (queryBtn) {
-        queryBtn.addEventListener("click", () => {
-          const query = document.getElementById("query-input").value.trim().toLowerCase();
-          const answerBox = document.getElementById("query-answer") || (() => {
-            const box = document.createElement("div");
-            box.id = "query-answer";
-            box.style.marginTop = "15px";
-            box.style.padding = "10px";
-            box.style.background = "#1e2430";
-            box.style.border = "1px solid var(--border)";
-            box.style.borderRadius = "4px";
-            box.style.fontSize = "13px";
-            box.style.color = "#a0aabf";
-            box.style.display = "none";
-            document.querySelector(".query-section").appendChild(box);
-            return box;
-          })();
-
-          if (!query) { answerBox.style.display = "none"; return; }
-
-          let matchedNodes = nodes.filter(n => query.includes(n.label.toLowerCase()));
-          nodes.forEach(n => {
-            if (!matchedNodes.includes(n) && n.aliases && n.aliases.some(a => query.includes(a.toLowerCase()))) {
-              matchedNodes.push(n);
-            }
-          });
-
-          if (matchedNodes.length === 0) {
-            answerBox.style.display = "block";
-            answerBox.innerHTML = `<strong>Error:</strong> No entities matching your query were found in the graph.`;
-            clearSelection();
-            return;
-          }
-
-          if (matchedNodes.length === 1) { selectNode(matchedNodes[0]); }
-          else {
-            const ids = new Set(matchedNodes.map(n => n.id));
-            node.classed("selected", n => ids.has(n.id));
-            node.classed("dimmed", n => !ids.has(n.id));
-            link.classed("highlighted", false);
-            link.classed("dimmed", true);
-          }
-
-          let relMap = {
-            "LOVE": ["love", "like", "care", "affection", "romantic"],
-            "FRIENDSHIP": ["friend", "close", "buddy", "pal"],
-            "FAMILY": ["mother", "father", "son", "daughter", "brother", "sister", "parent", "related"],
-            "WORK": ["employ", "work", "boss", "colleague", "lead", "head", "manager"],
-            "DATE": ["date", "marry", "partner", "boyfriend", "girlfriend"],
-            "LOCATION": ["live", "born", "headquarter", "locate"]
-          };
-
-          let relKeywords = [];
-          for (let [cat, terms] of Object.entries(relMap)) {
-            if (terms.some(t => query.includes(t))) relKeywords.push(cat.toLowerCase(), ...terms);
-          }
-          let matchedNames = new Set();
-          matchedNodes.forEach(n => {
-            matchedNames.add(n.label.toLowerCase());
-            if (n.aliases) n.aliases.forEach(a => matchedNames.add(a.toLowerCase()));
-          });
-
-          let queryWords = query.replace(/[?.,]/g, "").split(/\s+/).filter(w =>
-            w.length > 2 &&
-            !["who", "what", "where", "when", "how", "does", "with", "from", "this", "that", "the", "and", "are", "have", "has"].includes(w) &&
-            !Array.from(matchedNames).some(name => name.includes(w) || w.includes(name))
-          );
-          relKeywords.push(...queryWords);
-
-          let relevantLinks = links.filter(l => {
-            const sid = typeof l.source === "object" ? l.source.id : l.source;
-            const tid = typeof l.target === "object" ? l.target.id : l.target;
-            return matchedNodes.some(n => n.id === sid || n.id === tid);
-          });
-
-          if (relevantLinks.length === 0) {
-            answerBox.style.display = "block";
-            answerBox.innerHTML = `<strong>${matchedNodes.map(n => n.label).join(", ")}</strong> has no relationships.`;
-            return;
-          }
-
-          // Only filter by relationship keywords if they explicitly requested a verb/relationship not part of the name
-          let bestLinks = relevantLinks;
-          if (relKeywords.length > 0) {
-            let filtered = relevantLinks.filter(l => {
-              let lbl = (l.label || "").toLowerCase();
-              return relKeywords.some(kw => lbl.includes(kw));
-            });
-            if (filtered.length > 0) bestLinks = filtered;
-          }
-
-          if (bestLinks.length > 0) {
-            link.classed("highlighted", l => bestLinks.includes(l));
-            link.classed("dimmed", l => !bestLinks.includes(l));
-          }
-
-          let resultsHTML = "";
-
-          matchedNodes.forEach(mNode => {
-            resultsHTML += `<div style="margin-bottom: 15px;">`;
-            resultsHTML += `<strong style="color:var(--c-case); font-size:15px; display:inline-block; border-bottom: 1px solid #336; padding-bottom: 3px; margin-bottom: 5px; width:100%;">${mNode.label}</strong>`;
-            resultsHTML += `<ul style="margin-top:2px; margin-bottom:0; padding-left:20px; line-height: 1.6; list-style-type: square;">`;
-
-            let formatType = mNode.type ? mNode.type.charAt(0).toUpperCase() + mNode.type.slice(1).toLowerCase() : "Entity";
-            resultsHTML += `<li><strong>Type:</strong> ${formatType}</li>`;
-
-            let nodeLinks = bestLinks.filter(l => {
-              const sid = typeof l.source === "object" ? l.source.id : l.source;
-              const tid = typeof l.target === "object" ? l.target.id : l.target;
-              return sid === mNode.id || tid === mNode.id;
-            });
-
-            nodeLinks.forEach(l => {
-              const sid = typeof l.source === "object" ? l.source.id : l.source;
-              const tid = typeof l.target === "object" ? l.target.id : l.target;
-              const sNode = nodes.find(n => n.id === sid);
-              const tNode = nodes.find(n => n.id === tid);
-
-              if (!sNode || !tNode) return;
-
-              let isForward = sNode.id === mNode.id;
-              let otherNode = isForward ? tNode : sNode;
-              let oName = otherNode.label;
-              if (otherNode.aliases && otherNode.aliases.length > 0) {
-                oName += ` (${otherNode.aliases[0]})`;
-              }
-
-              let lbl = (l.label || "").toLowerCase().replace(/_/g, " ");
-              let resultStr = "";
-
-              if (isForward) {
-                resultStr = `${lbl.charAt(0).toUpperCase() + lbl.slice(1)} ${oName}`;
-              } else {
-                let isMale = ["steven", "conrad", "jeremiah", "brother", "boy", "man", "son"].some(n => mNode.label.toLowerCase().includes(n));
-                let isFemale = ["belly", "isabel", "laurel", "susannah", "sister", "mother", "girl", "woman", "daughter"].some(n => mNode.label.toLowerCase().includes(n));
-
-                if (lbl === "mother of" || lbl === "father of" || lbl === "parent of") {
-                  resultStr = (isMale ? "Son of " : (isFemale ? "Daughter of " : "Child of ")) + oName;
-                } else if (lbl.includes("friend")) {
-                  resultStr = `Friend of ${oName}`;
-                } else if (lbl.includes("brother of") || lbl.includes("sister of") || lbl.includes("sibling of")) {
-                  resultStr = (isMale ? "Brother of " : (isFemale ? "Sister of " : "Sibling of ")) + oName;
-                } else {
-                  resultStr = `${oName} ${lbl} them`;
-                  resultStr = resultStr.charAt(0).toUpperCase() + resultStr.slice(1);
-                }
-              }
-
-              resultsHTML += `<li>${resultStr}</li>`;
-            });
-
-            resultsHTML += `</ul></div>`;
-          });
-
-          answerBox.style.display = "block";
-          answerBox.innerHTML = resultsHTML;
-        });
-      }
-
-      // ═══════════════════════════════════════════════════════════════════════════
       // CONTROLS
       // ═══════════════════════════════════════════════════════════════════════════
       document.getElementById("link-distance").addEventListener("input", e => {
@@ -1710,13 +1568,39 @@
       recentsSection.style.display = 'block';
       recentsList.innerHTML = '';
       
-      recents.forEach(item => {
+      recents.forEach((item, index) => {
         const div = document.createElement('div');
         div.className = 'recent-item';
         div.innerHTML = `
-          <div class="recent-title">${item.title}</div>
+          <div class="recent-header">
+            <div class="recent-title">${item.title}</div>
+            <button class="recent-delete" title="Delete Graph">×</button>
+          </div>
           <div class="recent-meta">${item.date} • ${item.nodesCount} nodes</div>
         `;
+        
+        const deleteBtn = div.querySelector('.recent-delete');
+        deleteBtn.addEventListener('click', async (e) => {
+          e.stopPropagation(); // Prevent the item click from firing
+          
+          const textToDelete = item.text;
+          
+          recents.splice(index, 1);
+          localStorage.setItem('recentGraphs', JSON.stringify(recents));
+          renderRecents(); // Re-render the list immediately for snappiness
+
+          // Make backend request to delete from ChromaDB
+          try {
+            await fetch('/delete_graph', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ text: textToDelete })
+            });
+            console.log("Deleted graph from Vector DB successfully.");
+          } catch (err) {
+            console.error("Failed to delete graph from Vector DB", err);
+          }
+        });
         
         div.addEventListener('click', () => {
           // Restore text
