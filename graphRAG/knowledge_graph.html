@@ -1708,6 +1708,37 @@
         
         actions.appendChild(copyBtn);
 
+        // TTS (Text-to-Speech) Button
+        const ttsBtn = document.createElement('button');
+        ttsBtn.className = 'action-btn';
+        ttsBtn.title = 'Speak';
+        ttsBtn.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+          </svg>`;
+        
+        ttsBtn.onclick = () => {
+          // If already speaking this message, stop it
+          if (window.speechSynthesis.speaking) {
+            window.speechSynthesis.cancel();
+            ttsBtn.style.color = '';
+            return;
+          }
+
+          const utterance = new SpeechSynthesisUtterance(text);
+          
+          // Visual feedback
+          utterance.onstart = () => ttsBtn.style.color = 'var(--accent)';
+          utterance.onend = () => ttsBtn.style.color = '';
+          utterance.onerror = () => ttsBtn.style.color = '';
+          
+          window.speechSynthesis.speak(utterance);
+        };
+        
+        actions.appendChild(ttsBtn);
+
         // Edit Button (only for user messages)
         if (side === 'user') {
           const editBtn = document.createElement('button');
