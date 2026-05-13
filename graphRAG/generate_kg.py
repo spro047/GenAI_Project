@@ -1083,7 +1083,8 @@ def query_graph_rag(query: str, nodes: list, links: list, history: list = None) 
         "1. Provide a detailed, natural-sounding response. Use the Graph Facts for structural relationships and the Text Chunks for narrative detail.\n"
         "2. If the user asks a follow-up question, use the CONVERSATION HISTORY to maintain context.\n"
         "3. Use the relationships in the graph to describe the 'why' and 'how' behind the connections.\n"
-        "4. If the information is not in the graph or text chunks, politely state that the knowledge base doesn't contain that specific detail.\n\n"
+        "4. If the information is not in the graph or text chunks, politely state that the knowledge base doesn't contain that specific detail.\n"
+        "5. IMPORTANT: At the end of your response, you MUST ask at least 3 relevant follow-up questions to help the user clear any doubts and explore the topic further. These follow-up questions MUST be strictly based on the provided Knowledge Graph facts or Text Chunks.\n\n"
         "DETAILED ANSWER:"
     )
 
