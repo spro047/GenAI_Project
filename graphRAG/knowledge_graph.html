@@ -7,390 +7,650 @@
   <title>Knowledge Graph Builder</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.2/marked.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
-
+    /* ───────────────────────────────────────────────────────────
+       Claude Code-inspired minimal palette
+       Light:  warm cream paper, near-black ink, coral accent
+       Dark :  warm charcoal, off-white ink, coral accent
+       No gradients. Subtle borders. Generous whitespace.
+       ─────────────────────────────────────────────────────────── */
     :root {
-      --bg: #0b0e14;
-      --surface: #1a1f2b;
-      --border: #2e3545;
-      --text: #e2e8f0;
-      --text-muted: #94a3b8;
-      --accent: #00d2ff;
+      --bg:           #FAF9F5;
+      --surface:      #FFFFFF;
+      --surface-alt:  #F5F4ED;
+      --border:       #E8E6DC;
+      --border-strong:#D4D1C4;
+      --text:         #1A1A19;
+      --text-muted:   #6B6A63;
+      --text-soft:    #95938A;
+      --accent:       #CC785C;   /* Claude coral */
+      --accent-soft:  #F4E4DC;
+      --accent-ink:   #FFFFFF;
+      --danger:       #B54343;
+      --graph-bg:     #FAF9F5;
+      --graph-dot:    #E8E6DC;
+      --link-stroke:  #C9C6B8;
+      --shadow-sm:    0 1px 2px rgba(26,26,25,0.04);
+      --shadow-md:    0 4px 16px rgba(26,26,25,0.06);
+      --shadow-lg:    0 12px 40px rgba(26,26,25,0.10);
+      --radius:       10px;
+      --radius-sm:    6px;
+      --ease:         cubic-bezier(0.22, 1, 0.36, 1);
 
-      --c-person: #ffd700;
-      --c-org: #4c8eda;
-      --c-leg: #f16667;
-      --c-case: #ff9f00;
-      --c-concept: #d973d9;
-      --c-gov: #47cc7a;
-      --c-other: #8d8f92;
+      /* Entity colors — muted, harmonious palette */
+      --c-person:        #B8704A;
+      --c-organization:  #4A6B8A;
+      --c-location:      #5A8A6B;
+      --c-event:         #B8864A;
+      --c-object:        #8A7B4A;
+      --c-concept:       #8A5A8A;
+      --c-product:       #B8634A;
+      --c-legislation:   #4A7B8A;
+      --c-legal_case:    #B89C4A;
+      --c-government:    #6B5A8A;
+      --c-ai_model:      #7A6BA8;
+      --c-technology:    #A86B8A;
+      --c-other:         #95938A;
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
+    body.dark-mode {
+      --bg:           #1F1E1B;
+      --surface:      #262522;
+      --surface-alt:  #2E2D29;
+      --border:       #3A3833;
+      --border-strong:#4A4842;
+      --text:         #F0EEE6;
+      --text-muted:   #A8A59C;
+      --text-soft:    #7A7770;
+      --accent:       #D89878;
+      --accent-soft:  #3A2E27;
+      --accent-ink:   #1F1E1B;
+      --danger:       #D67A7A;
+      --graph-bg:     #1F1E1B;
+      --graph-dot:    #2E2D29;
+      --link-stroke:  #45433D;
+      --shadow-sm:    0 1px 2px rgba(0,0,0,0.2);
+      --shadow-md:    0 4px 16px rgba(0,0,0,0.3);
+      --shadow-lg:    0 12px 40px rgba(0,0,0,0.5);
+
+      --c-person:        #E8A87C;
+      --c-organization:  #8AAFD4;
+      --c-location:      #9ECCAD;
+      --c-event:         #E8C078;
+      --c-object:        #D4C078;
+      --c-concept:       #C89AC8;
+      --c-product:       #E8967C;
+      --c-legislation:   #7CB8C8;
+      --c-legal_case:    #E8D478;
+      --c-government:    #B19AD4;
+      --c-ai_model:      #B8A8E0;
+      --c-technology:    #E0A0CC;
+      --c-other:         #A8A59C;
     }
 
-    body {
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
       background: var(--bg);
       color: var(--text);
-      font-family: 'IBM Plex Sans', sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-feature-settings: "cv11", "ss01", "ss03";
       height: 100vh;
       overflow: hidden;
       display: flex;
       flex-direction: column;
+      transition: background-color 0s, color 0s;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
 
-    /* ── Header ─────────────────────────────────────────────────── */
+    ::selection { background: var(--accent-soft); color: var(--text); }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-soft); }
+
+    /* ── Header ─────────────────────────────────────────────── */
     header {
-      padding: 10px 24px;
+      padding: 18px 28px;
       border-bottom: 1px solid var(--border);
-      background: rgba(26, 31, 43, 0.8);
-      backdrop-filter: blur(12px);
+      background: var(--bg);
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 24px;
       flex-shrink: 0;
       z-index: 100;
+      transition: border-color 0.4s var(--ease), background 0.4s var(--ease);
     }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-mark {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent-ink);
+      font-weight: 700;
+      font-size: 12px;
+      letter-spacing: -0.02em;
+      transition: transform 0.3s var(--ease);
+    }
+    .brand:hover .brand-mark { transform: rotate(-8deg) scale(1.05); }
 
     header h1 {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 14px;
+      font-size: 15px;
       font-weight: 600;
-      color: var(--accent);
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
+      letter-spacing: -0.01em;
+      color: var(--text);
     }
 
-    .stats {
+    .stats-bar {
       margin-left: auto;
-      font-family: 'IBM Plex Mono', monospace;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: 'JetBrains Mono', monospace;
       font-size: 11px;
       color: var(--text-muted);
-      display: flex;
-      gap: 20px;
     }
 
-    .stats span {
-      color: #fff;
-      font-weight: 500;
-    }
-
-    /* ── Layout ──────────────────────────────────────────────────── */
-    .layout {
-      display: flex;
-      flex: 1;
-      overflow: hidden;
-    }
-
-    /* ── Sidebar ─────────────────────────────────────────────────── */
-    .sidebar {
-      width: 320px;
+    .stat-chip {
+      padding: 6px 12px;
       background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: border-color 0.2s var(--ease), background 0.2s var(--ease);
+    }
+    .stat-chip:hover { border-color: var(--border-strong); }
+    .stat-chip strong {
+      color: var(--text);
+      font-weight: 600;
+    }
+    .stat-chip .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--accent);
+    }
+
+    .theme-toggle {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 7px 14px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      transition: all 0.25s var(--ease);
+    }
+    .theme-toggle:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .theme-toggle svg { width: 14px; height: 14px; }
+
+    /* ── Layout ──────────────────────────────────────────────── */
+    .layout { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── Sidebar ─────────────────────────────────────────────── */
+    .sidebar {
+      width: 340px;
+      background: var(--bg);
       border-right: 1px solid var(--border);
       display: flex;
       flex-direction: column;
       flex-shrink: 0;
       overflow-y: auto;
-      box-shadow: 10px 0 30px rgba(0, 0, 0, 0.3);
-      z-index: 50;
+      transition: border-color 0.4s var(--ease), background 0.4s var(--ease);
     }
 
     .sidebar-section {
-      padding: 20px;
+      padding: 22px 24px;
       border-bottom: 1px solid var(--border);
+      transition: border-color 0.4s var(--ease);
     }
 
     .sidebar-label {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 10px;
+      font-size: 11px;
       font-weight: 600;
       color: var(--text-muted);
       text-transform: uppercase;
-      letter-spacing: 0.12em;
-      margin-bottom: 12px;
+      letter-spacing: 0.08em;
+      margin-bottom: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
 
-    /* ── Recents ─────────────────────────────────────────────────── */
-    .recent-item {
-      padding: 8px 12px;
-      margin-bottom: 8px;
-      background: #0f131a;
+    /* ── Inputs ──────────────────────────────────────────────── */
+    .input-wrap { display: flex; flex-direction: column; gap: 10px; }
+
+    textarea, input[type="search"], input[type="text"] {
+      width: 100%;
+      background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 6px;
+      border-radius: var(--radius-sm);
+      padding: 11px 13px;
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      color: var(--text);
+      outline: none;
+      resize: none;
+      transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease), background 0.4s var(--ease);
+    }
+    textarea { min-height: 130px; line-height: 1.55; }
+    textarea:focus, input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+    textarea::placeholder, input::placeholder { color: var(--text-soft); }
+
+    #file-upload {
+      width: 100%;
+      font-size: 12px;
+      color: var(--text-muted);
+      background: var(--surface);
+      padding: 10px 12px;
+      border: 1px dashed var(--border-strong);
+      border-radius: var(--radius-sm);
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.2s var(--ease);
+    }
+    #file-upload:hover {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+    #file-upload::file-selector-button {
+      background: var(--text);
+      color: var(--bg);
+      border: none;
+      padding: 5px 11px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      font-size: 11px;
+      font-weight: 500;
+      margin-right: 10px;
+      transition: all 0.2s var(--ease);
+    }
+    #file-upload::file-selector-button:hover {
+      background: var(--accent);
+      color: var(--accent-ink);
+    }
+
+    /* ── Buttons ─────────────────────────────────────────────── */
+    .btn {
+      padding: 11px 16px;
+      border-radius: var(--radius-sm);
+      border: 1px solid transparent;
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s var(--ease);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      line-height: 1;
+    }
+    .btn-primary {
+      background: var(--text);
+      color: var(--bg);
+    }
+    .btn-primary:hover:not(:disabled) {
+      background: var(--accent);
+      color: var(--accent-ink);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-md);
+    }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text);
+      border-color: var(--border);
+    }
+    .btn-secondary:hover {
+      border-color: var(--text);
+    }
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-muted);
+      border-color: transparent;
+    }
+    .btn-ghost:hover { color: var(--text); background: var(--surface-alt); }
+
+    .generate-btn { width: 100%; padding: 13px 16px; }
+
+    .error-msg {
+      font-size: 12px;
+      color: var(--danger);
+      padding: 8px 10px;
+      background: var(--accent-soft);
+      border-radius: var(--radius-sm);
+      display: none;
+      animation: slideDown 0.3s var(--ease);
+    }
+    .error-msg.visible { display: block; }
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Search row ──────────────────────────────────────────── */
+    .search-form { display: flex; gap: 6px; }
+    .search-form input { flex: 1; min-width: 0; }
+    .search-form .btn { padding: 9px 12px; font-size: 12px; }
+    .search-feedback {
+      font-size: 11px;
+      color: var(--danger);
+      margin-top: 8px;
+      display: none;
+    }
+
+    /* ── Recents ─────────────────────────────────────────────── */
+    .recent-item {
+      padding: 10px 12px;
+      margin-bottom: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.2s var(--ease);
       display: flex;
       flex-direction: column;
       gap: 4px;
       position: relative;
     }
-    
     .recent-item:hover {
       border-color: var(--accent);
-      background: rgba(0, 210, 255, 0.05);
+      transform: translateX(2px);
     }
-
     .recent-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       gap: 8px;
     }
-    
     .recent-title {
-      font-size: 12px;
+      font-size: 13px;
+      font-weight: 500;
       color: var(--text);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       flex: 1;
     }
-
     .recent-delete {
       background: none;
       border: none;
-      color: var(--text-muted);
+      color: var(--text-soft);
       cursor: pointer;
       font-size: 16px;
       line-height: 1;
-      padding: 0 4px;
-      display: none;
+      padding: 2px 5px;
+      opacity: 0;
       border-radius: 4px;
-      transition: all 0.2s;
+      transition: all 0.2s var(--ease);
     }
-
-    .recent-item:hover .recent-delete {
-      display: block;
-    }
-
-    .recent-delete:hover {
-      color: #ff6b6b;
-      background: rgba(255, 107, 107, 0.1);
-    }
-    
+    .recent-item:hover .recent-delete { opacity: 1; }
+    .recent-delete:hover { color: var(--danger); background: var(--accent-soft); }
     .recent-meta {
-      font-size: 10px;
-      color: var(--text-muted);
-      font-family: 'IBM Plex Mono', monospace;
-    }
-
-    /* ── Text Input ─────────────────────────────────────────────── */
-    .input-section {
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .input-section textarea {
-      width: 100%;
-      min-height: 120px;
-      background: #0f131a;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 14px;
-      font-family: 'IBM Plex Sans', sans-serif;
-      font-size: 13px;
-      color: var(--text);
-      resize: none;
-      outline: none;
-      transition: all 0.2s;
-    }
-
-    .input-section textarea:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(0, 210, 255, 0.1);
-    }
-
-    #file-upload {
-      width: 100%;
       font-size: 11px;
-      color: var(--text-muted);
-      background: #0f131a;
-      padding: 8px;
-      border: 1px dashed var(--border);
-      border-radius: 8px;
-      cursor: pointer;
-      font-family: 'IBM Plex Sans', sans-serif;
-      transition: all 0.2s;
+      color: var(--text-soft);
+      font-family: 'JetBrains Mono', monospace;
     }
 
-    #file-upload:hover {
-      border-color: var(--accent);
-      background: rgba(0, 210, 255, 0.05);
+    /* ── Legend ──────────────────────────────────────────────── */
+    .filter-state {
+      font-size: 11px;
+      color: var(--text-soft);
+      margin-bottom: 10px;
+      font-style: normal;
     }
-
-    #file-upload::file-selector-button {
-      background: var(--surface);
-      color: var(--accent);
-      border: 1px solid var(--border);
-      padding: 4px 10px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 10px;
-      text-transform: uppercase;
-      margin-right: 10px;
-      transition: all 0.2s;
-    }
-
-    #file-upload::file-selector-button:hover {
-      background: var(--accent);
-      color: #000;
-    }
-
-    .generate-btn {
-      padding: 14px;
-      border-radius: 8px;
-      border: none;
-      background: var(--accent);
-      color: #000;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 12px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.2s;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-    }
-
-    .generate-btn:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(0, 210, 255, 0.3);
-    }
-
-    /* ── Legend ────────────────────────────────────────────────── */
     .legend-item {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 8px 0;
+      gap: 9px;
+      padding: 6px 0;
       cursor: pointer;
-      transition: opacity 0.2s;
+      transition: opacity 0.2s var(--ease);
+      font-size: 12px;
+      color: var(--text);
     }
-
+    .legend-item:hover { color: var(--accent); }
+    .legend-item input[type="checkbox"] {
+      appearance: none;
+      width: 14px; height: 14px;
+      border: 1.5px solid var(--border-strong);
+      border-radius: 3px;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s var(--ease);
+      flex-shrink: 0;
+    }
+    .legend-item input[type="checkbox"]:checked {
+      background: var(--text);
+      border-color: var(--text);
+    }
+    .legend-item input[type="checkbox"]:checked::after {
+      content: '';
+      position: absolute;
+      left: 3px; top: 0px;
+      width: 4px; height: 8px;
+      border: solid var(--bg);
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
     .legend-dot {
-      width: 12px;
-      height: 12px;
+      width: 9px; height: 9px;
       border-radius: 50%;
-      border: 2px solid rgba(255, 255, 255, 0.1);
+      flex-shrink: 0;
     }
+    .legend-name { flex: 1; }
+    .legend-count {
+      color: var(--text-soft);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+    }
+    .btn-clear-filters {
+      font-size: 11px;
+      padding: 3px 8px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      cursor: pointer;
+      border-radius: 4px;
+      font-weight: 500;
+      text-transform: none;
+      letter-spacing: 0;
+      transition: all 0.2s var(--ease);
+    }
+    .btn-clear-filters:hover { color: var(--text); border-color: var(--text); }
 
-    /* ── Canvas ──────────────────────────────────────────────────── */
+    /* ── Controls ───────────────────────────────────────────── */
+    .control-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+    .control-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+    }
+    input[type="range"] {
+      width: 100%;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      outline: none;
+      transition: background 0.2s var(--ease);
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      background: var(--text);
+      cursor: pointer;
+      border: 3px solid var(--bg);
+      box-shadow: 0 0 0 1px var(--border-strong);
+      transition: all 0.2s var(--ease);
+    }
+    input[type="range"]::-webkit-slider-thumb:hover {
+      background: var(--accent);
+      transform: scale(1.1);
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      background: var(--text);
+      cursor: pointer;
+      border: 3px solid var(--bg);
+    }
+    .btn-row { display: flex; gap: 8px; }
+    .btn-row .btn { flex: 1; padding: 8px 10px; font-size: 12px; }
+
+    /* ── Canvas ──────────────────────────────────────────────── */
     #graph-container {
       flex: 1;
       position: relative;
-      background: radial-gradient(circle at center, #1a202c 0%, #0b0e14 100%);
+      background:
+        radial-gradient(var(--graph-dot) 1px, transparent 1px),
+        var(--graph-bg);
+      background-size: 24px 24px;
+      transition: background-color 0s, color 0s;
+      overflow: hidden;
     }
-
-    /* ── Links & Edges ───────────────────────────────────────────── */
-    .link {
-      stroke: #4a5568;
-      stroke-opacity: 0.4;
-      stroke-width: 1.5px;
-    }
-
-    .edge-label-bg {
-      fill: var(--surface);
-      stroke: var(--border);
-      stroke-width: 1px;
-      opacity: 0.9;
-      rx: 4;
-      ry: 4;
-    }
-
-    .edge-label {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 7.5px;
-      font-weight: 600;
-      fill: var(--accent);
-      text-anchor: middle;
-      pointer-events: auto;
-      text-transform: uppercase;
-    }
-
-    /* ── Nodes ───────────────────────────────────────────────────── */
-    .node circle {
-      stroke: rgba(255, 255, 255, 0.2);
-      stroke-width: 2px;
-      filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.4));
-    }
-
-    .node text {
-      font-family: 'IBM Plex Sans', sans-serif;
-      font-size: 10px;
-      font-weight: 600;
-      fill: #fff;
-      text-anchor: middle;
-      pointer-events: auto;
-      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
-    }
-
-    #tooltip.visible {
-      opacity: 1;
-    }
-
-    .tt-name {
-      font-weight: 600;
-      font-size: 13px;
-      margin-bottom: 3px;
-      color: var(--text);
-    }
-
-    .tt-type {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-bottom: 6px;
-    }
-
-    .tt-desc {
-      font-size: 11px;
-      color: var(--text-muted);
-      line-height: 1.5;
-      margin-bottom: 6px;
-    }
-
-    .tt-connections {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 10px;
-      color: var(--text-muted);
-      border-top: 1px solid var(--border);
-      padding-top: 6px;
-      margin-top: 4px;
-    }
-
-    .tt-connections span {
-      color: var(--accent);
-    }
-
-    /* ── Canvas Elements ────────────────────────────────────────── */
-    svg {
+    #graph {
       width: 100%;
       height: 100%;
       display: block;
     }
 
+    .link {
+      stroke: var(--link-stroke);
+      stroke-opacity: 0.7;
+      stroke-width: 1.4px;
+      transition: stroke-opacity 0.3s var(--ease);
+    }
+    .link.highlighted { stroke: var(--accent); stroke-opacity: 1; stroke-width: 2px; }
+    .link.dimmed { stroke-opacity: 0.12; }
+
+    .edge-label-bg {
+      fill: var(--surface);
+      stroke: var(--border);
+      stroke-width: 1px;
+      opacity: 0.96;
+      rx: 4; ry: 4;
+    }
+    .edge-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      font-weight: 500;
+      fill: var(--text);
+      text-anchor: middle;
+      pointer-events: auto;
+      text-transform: lowercase;
+      letter-spacing: 0.02em;
+    }
+
+    .node circle {
+      stroke: var(--bg);
+      stroke-width: 2.5px;
+      transition: stroke-width 0.2s var(--ease), filter 0.2s var(--ease);
+      cursor: pointer;
+    }
+    .node:hover circle {
+      stroke-width: 4px;
+      filter: drop-shadow(0 4px 12px rgba(204,120,92,0.25));
+    }
+    .node.selected circle {
+      stroke: var(--accent);
+      stroke-width: 4px;
+    }
+    .node.dimmed { opacity: 0.25; }
+    .node text {
+      font-family: 'Inter', sans-serif;
+      font-size: 11px;
+      font-weight: 500;
+      fill: var(--text);
+      text-anchor: middle;
+      pointer-events: none;
+      paint-order: stroke;
+      stroke: var(--bg);
+      stroke-width: 3px;
+      stroke-linejoin: round;
+    }
+
     #tooltip {
       position: absolute;
       background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 10px 13px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius);
+      padding: 12px 14px;
       pointer-events: none;
       opacity: 0;
-      transition: opacity 0.15s;
-      max-width: 260px;
+      transform: translateY(4px);
+      transition: opacity 0.2s var(--ease), transform 0.2s var(--ease);
+      max-width: 280px;
       z-index: 1000;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      box-shadow: var(--shadow-lg);
     }
+    #tooltip.visible { opacity: 1; transform: translateY(0); }
+    .tt-name {
+      font-weight: 600;
+      font-size: 14px;
+      margin-bottom: 4px;
+      color: var(--text);
+    }
+    .tt-type {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+    .tt-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.55;
+      margin-bottom: 8px;
+    }
+    .tt-connections {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-soft);
+      border-top: 1px solid var(--border);
+      padding-top: 8px;
+    }
+    .tt-connections span { color: var(--accent); font-weight: 600; }
 
-    /* ── Empty State ─────────────────────────────────────────────── */
+    /* ── Empty state ─────────────────────────────────────────── */
     .empty-state {
       display: flex;
       flex-direction: column;
@@ -400,71 +660,93 @@
       color: var(--text-muted);
       text-align: center;
       padding: 40px;
+      animation: fadeIn 0.6s var(--ease);
     }
-
-    .empty-state-icon {
-      font-size: 48px;
-      margin-bottom: 16px;
-      opacity: 0.5;
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
-
-    .empty-state-text {
-      font-size: 14px;
-      max-width: 300px;
-      line-height: 1.6;
-    }
-
-    /* ── Node Popup ────────────────────────────────────────────── */
-    #node-popup {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
+    .empty-icon {
+      width: 56px; height: 56px;
+      border-radius: 14px;
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 20px;
-      width: 350px;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 18px;
+      color: var(--accent);
+    }
+    .empty-icon svg { width: 26px; height: 26px; }
+    .empty-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+      letter-spacing: -0.01em;
+    }
+    .empty-text {
+      font-size: 13px;
+      max-width: 340px;
+      line-height: 1.6;
+      color: var(--text-muted);
+    }
+
+    /* ── Node popup ──────────────────────────────────────────── */
+    #node-popup {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%) scale(0.95);
+      background: var(--surface);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius);
+      padding: 22px;
+      width: 380px;
+      box-shadow: var(--shadow-lg);
       z-index: 2000;
       display: none;
       flex-direction: column;
-      gap: 12px;
+      gap: 14px;
+      opacity: 0;
+      transition: opacity 0.25s var(--ease), transform 0.25s var(--ease);
     }
-    
+    #node-popup.open {
+      display: flex;
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
     .popup-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       border-bottom: 1px solid var(--border);
-      padding-bottom: 10px;
+      padding-bottom: 12px;
     }
-    
     .popup-title {
       font-weight: 600;
       font-size: 16px;
-      color: var(--accent);
+      color: var(--text);
+      letter-spacing: -0.01em;
     }
-    
     .popup-close {
       cursor: pointer;
       color: var(--text-muted);
       font-size: 20px;
-      font-family: 'IBM Plex Mono', monospace;
-      transition: color 0.2s;
+      width: 26px; height: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      transition: all 0.2s var(--ease);
     }
-    
-    .popup-close:hover {
-      color: var(--text);
-    }
-    
+    .popup-close:hover { color: var(--text); background: var(--surface-alt); }
     .popup-content {
-      font-size: 13px;
-      line-height: 1.6;
-      color: var(--text);
+      font-size: 13.5px;
+      line-height: 1.65;
+      color: var(--text-muted);
     }
 
-    /* ── Chatbot UI ────────────────────────────────────────────── */
+    /* ── Chatbot ─────────────────────────────────────────────── */
     #chatbot-container {
       position: fixed;
       bottom: 24px;
@@ -473,222 +755,228 @@
       display: flex;
       flex-direction: column;
       align-items: flex-end;
-      gap: 16px;
+      gap: 14px;
     }
-
     #chat-window {
-      width: 360px;
-      height: 480px;
+      width: 380px;
+      height: 520px;
       background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+      border: 1px solid var(--border-strong);
+      border-radius: 14px;
+      box-shadow: var(--shadow-lg);
       display: none;
       flex-direction: column;
       overflow: hidden;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       transform-origin: bottom right;
       opacity: 0;
-      transform: scale(0.9) translateY(20px);
+      transform: scale(0.92) translateY(16px);
+      transition: opacity 0.3s var(--ease), transform 0.3s var(--ease);
     }
-
     #chat-window.open {
       display: flex;
       opacity: 1;
       transform: scale(1) translateY(0);
     }
-
     .chat-header {
-      padding: 16px;
-      background: rgba(255, 255, 255, 0.03);
+      padding: 16px 18px;
       border-bottom: 1px solid var(--border);
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
-
-    .chat-header h3 {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 12px;
-      color: var(--accent);
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
+    .chat-header-left { display: flex; align-items: center; gap: 10px; }
+    .chat-header-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      position: relative;
     }
-
+    .chat-header-dot::after {
+      content: '';
+      position: absolute;
+      inset: -3px;
+      border-radius: 50%;
+      background: var(--accent);
+      opacity: 0.3;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 0.3; }
+      50%      { transform: scale(1.6); opacity: 0; }
+    }
+    .chat-header h3 {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.01em;
+    }
     #chat-messages {
       flex: 1;
       overflow-y: auto;
-      padding: 16px;
+      padding: 18px;
       display: flex;
       flex-direction: column;
       gap: 12px;
-      scrollbar-width: thin;
-      scrollbar-color: var(--border) transparent;
     }
-
     .message-container {
       display: flex;
       flex-direction: column;
       gap: 4px;
-      max-width: 85%;
+      max-width: 88%;
+      animation: msgIn 0.3s var(--ease);
     }
-
-    .message-container.user {
-      align-self: flex-end;
-      align-items: flex-end;
+    @keyframes msgIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
-
-    .message-container.bot {
-      align-self: flex-start;
-      align-items: flex-start;
-    }
-
+    .message-container.user { align-self: flex-end; align-items: flex-end; }
+    .message-container.bot { align-self: flex-start; align-items: flex-start; }
     .message {
-      padding: 12px 16px;
+      padding: 11px 14px;
       border-radius: 14px;
       font-size: 13.5px;
-      line-height: 1.6;
+      line-height: 1.55;
       word-wrap: break-word;
       user-select: text;
-      position: relative;
     }
-
     .message.user {
-      background: var(--accent);
-      color: #000;
-      border-bottom-right-radius: 2px;
-      box-shadow: 0 4px 12px rgba(0, 210, 255, 0.2);
+      background: var(--text);
+      color: var(--bg);
+      border-bottom-right-radius: 4px;
     }
-
     .message.bot {
-      background: rgba(255, 255, 255, 0.05);
+      background: var(--surface-alt);
       color: var(--text);
-      border-bottom-left-radius: 2px;
-      border: 1px solid var(--border);
+      border-bottom-left-radius: 4px;
     }
-
+    .message.loading { font-style: italic; color: var(--text-muted); }
     .message-actions {
       display: flex;
-      gap: 8px;
+      gap: 4px;
       opacity: 0;
-      transition: opacity 0.2s;
-      padding: 0 4px;
+      transition: opacity 0.2s var(--ease);
+      padding: 0 2px;
     }
-
-    .message-container:hover .message-actions {
-      opacity: 1;
-    }
-
+    .message-container:hover .message-actions { opacity: 1; }
     .action-btn {
       background: none;
       border: none;
-      color: var(--text-muted);
+      color: var(--text-soft);
       cursor: pointer;
       padding: 4px;
       display: flex;
       align-items: center;
       justify-content: center;
       border-radius: 4px;
-      transition: all 0.2s;
+      transition: all 0.2s var(--ease);
     }
+    .action-btn:hover { color: var(--accent); background: var(--surface-alt); }
+    .action-btn svg { width: 13px; height: 13px; }
 
-    .action-btn:hover {
-      color: var(--accent);
-      background: rgba(255, 255, 255, 0.05);
-    }
-
-    .action-btn svg {
-      width: 14px;
-      height: 14px;
-    }
-
-    .message.loading {
-      font-style: italic;
-      color: var(--text-muted);
-    }
-
-    /* Markdown Styling inside messages */
     .message h1, .message h2, .message h3 {
-      font-size: 1.1em;
+      font-size: 1.05em;
       margin: 8px 0 4px 0;
-      color: var(--accent);
+      color: var(--text);
+      font-weight: 600;
     }
-    .message p {
-      margin-bottom: 8px;
-    }
-    .message p:last-child {
-      margin-bottom: 0;
-    }
-    .message ul, .message ol {
-      margin-left: 20px;
-      margin-bottom: 8px;
-    }
-    .message li {
-      margin-bottom: 4px;
-    }
+    .message p { margin-bottom: 6px; }
+    .message p:last-child { margin-bottom: 0; }
+    .message ul, .message ol { margin-left: 20px; margin-bottom: 6px; }
+    .message li { margin-bottom: 3px; }
     .message code {
-      background: rgba(255, 255, 255, 0.1);
-      padding: 2px 4px;
+      background: var(--bg);
+      padding: 2px 5px;
       border-radius: 4px;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.9em;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.88em;
     }
+    .message.user code { background: rgba(255,255,255,0.15); }
 
     .chat-input-area {
       padding: 12px;
-      background: rgba(0, 0, 0, 0.2);
       border-top: 1px solid var(--border);
       display: flex;
       gap: 8px;
+      align-items: center;
     }
-
     #chat-input {
       flex: 1;
-      background: #0f131a;
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 8px 16px;
-      color: var(--text);
+      border-radius: 999px;
+      padding: 9px 14px;
       font-size: 13px;
-      outline: none;
     }
-
-    #chat-input:focus {
-      border-color: var(--accent);
-    }
-
     #send-chat {
-      background: none;
+      background: var(--text);
       border: none;
-      color: var(--accent);
+      color: var(--bg);
       cursor: pointer;
-      font-size: 18px;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.2s var(--ease);
     }
+    #send-chat:hover { background: var(--accent); transform: scale(1.05); }
+    #send-chat svg { width: 15px; height: 15px; }
 
     #chat-toggle {
-      width: 56px;
-      height: 56px;
-      background: var(--accent);
-      color: #000;
+      width: 52px;
+      height: 52px;
+      background: var(--text);
+      color: var(--bg);
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      box-shadow: 0 4px 20px rgba(0, 210, 255, 0.4);
-      transition: all 0.3s;
+      box-shadow: var(--shadow-md);
+      transition: all 0.3s var(--ease);
+      border: none;
     }
-
     #chat-toggle:hover {
-      transform: scale(1.05) rotate(5deg);
+      background: var(--accent);
+      color: var(--accent-ink);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
     }
+    #chat-toggle svg { width: 22px; height: 22px; }
 
-    #chat-toggle svg {
-      width: 24px;
-      height: 24px;
+    /* ── Loading spinner on generate ─────────────────────── */
+    .btn-primary.loading {
+      pointer-events: none;
+    }
+    .spinner {
+      width: 13px; height: 13px;
+      border: 1.5px solid currentColor;
+      border-right-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Meta strip ──────────────────────────────────────── */
+    .meta-strip {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .meta-pill {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+      padding: 4px 9px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--text-muted);
+    }
+    .meta-pill strong { color: var(--text); font-weight: 600; }
+
+    @media (max-width: 860px) {
+      .sidebar { width: 280px; }
+      .stats-bar .stat-chip:not(:first-child) { display: none; }
     }
   </style>
 </head>
@@ -696,361 +984,332 @@
 <body>
 
   <header>
-    <h1>Knowledge Graph Builder</h1>
-    <div class="stats">
-      nodes <span id="stat-nodes">—</span> &nbsp;|&nbsp;
-      edges <span id="stat-edges">—</span> &nbsp;|&nbsp;
-      communities <span id="stat-communities">—</span>
+    <div class="brand">
+      <div class="brand-mark">K</div>
+      <h1>Knowledge Graph</h1>
     </div>
-    <div class="metadata-stats"
-      style="margin-top: 8px; font-size: 12px; color: var(--text-muted); font-family: 'IBM Plex Mono', monospace;">
-      Method: <span id="stat-method" style="color: var(--accent);">—</span> &nbsp;|&nbsp;
-      Search Augmented: <span id="stat-search" style="color: var(--accent);">—</span>
+
+    <div class="stats-bar">
+      <div class="stat-chip"><span class="dot"></span> <strong id="stat-nodes">0</strong> nodes</div>
+      <div class="stat-chip"><strong id="stat-edges">0</strong> edges</div>
+      <div class="stat-chip"><strong id="stat-communities">—</strong> communities</div>
     </div>
+
+    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">
+      <svg id="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="4"></circle>
+        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
+      </svg>
+      <span id="theme-text">Light</span>
+    </button>
   </header>
+
 
   <div class="layout">
 
-    <!-- ── Sidebar ─────────────────────────────────────── -->
     <aside class="sidebar">
 
-
-
-      <div class="input-section">
-        <div class="sidebar-label">Input Text or Upload .txt</div>
-        <input type="file" id="file-upload" accept=".txt">
-        <textarea id="input-text"
-          placeholder="Paste your paragraph here to extract entities and relationships..."></textarea>
-        <div id="error-msg" class="error-msg"></div>
-        <button id="generate-btn" class="generate-btn">Generate Graph</button>
-      </div>
-
-      <div class="search-wrap" style="padding: 20px; border-bottom: 1px solid var(--border);">
-        <form id="search-form" class="search-form" style="display: flex; gap: 8px;">
-          <input type="search" id="search" placeholder="Search nodes by name..." style="flex: 1; min-width: 0; background: #0f131a; border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; font-family: 'IBM Plex Sans', sans-serif; font-size: 12px; color: var(--text); outline: none; transition: border-color 0.15s;">
-          <button type="submit" id="btn-search" class="generate-btn" style="flex: 0 0 auto; padding: 7px 10px; margin: 0; font-size: 11px; letter-spacing: normal; width: auto; background: var(--accent); color: #000;">Search</button>
-          <button type="button" id="btn-clear" class="generate-btn" style="flex: 0 0 auto; padding: 7px 10px; margin: 0; font-size: 11px; letter-spacing: normal; width: auto; background: transparent; color: var(--text-muted); border: 1px solid var(--border);">Clear</button>
-        </form>
-        <div id="search-feedback" class="search-feedback" style="font-family: 'IBM Plex Sans', sans-serif; font-size: 11px; color: #ff6b6b; margin-top: 8px; display: none;">No node found</div>
+      <div class="sidebar-section">
+        <div class="sidebar-label">Input</div>
+        <div class="input-wrap">
+          <input type="file" id="file-upload" accept=".txt">
+          <textarea id="input-text" placeholder="Paste a paragraph to extract entities and relationships…"></textarea>
+          <div id="error-msg" class="error-msg"></div>
+          <button id="generate-btn" class="btn btn-primary generate-btn">Generate Graph</button>
+          <div class="meta-strip" style="margin-top: 4px;">
+            <span class="meta-pill">method <strong id="stat-method">—</strong></span>
+            <span class="meta-pill">search <strong id="stat-search">—</strong></span>
+          </div>
+        </div>
       </div>
 
       <div class="sidebar-section">
-        <div class="sidebar-label" style="display:flex; justify-content:space-between; align-items:center;">
-          <span>Filter by Type</span>
-          <button id="btn-clear-filters"
-            style="font-size:11px; padding:2px 6px; background:transparent; border:1px solid #556; color:#aab; cursor:pointer; border-radius:3px;">Clear
-            Filters</button>
+        <div class="sidebar-label">Search</div>
+        <form id="search-form" class="search-form">
+          <input type="search" id="search" placeholder="Find node…">
+          <button type="submit" id="btn-search" class="btn btn-primary">Go</button>
+          <button type="button" id="btn-clear" class="btn btn-secondary">Clear</button>
+        </form>
+        <div id="search-feedback" class="search-feedback">No node found</div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-label">
+          <span>Filter by type</span>
+          <button id="btn-clear-filters" class="btn-clear-filters">Reset</button>
         </div>
-        <div id="filter-state" style="font-size:12px; color:var(--text-muted); margin-bottom:8px; font-style:italic;">
-          Showing: All</div>
-        <div id="legend" style="display:flex; flex-direction:column; gap:5px;"></div>
+        <div id="filter-state" class="filter-state">Showing all</div>
+        <div id="legend"></div>
       </div>
 
       <div class="sidebar-section">
         <div class="sidebar-label">Controls</div>
-        <div class="controls">
-          <div class="control-row">
-            <div class="control-label">Link distance</div>
-            <input type="range" id="link-distance" min="100" max="800" value="400">
-          </div>
-          <div class="control-row">
-            <div class="control-label">Charge strength</div>
-            <input type="range" id="charge" min="-3000" max="-100" value="-1500">
-          </div>
-          <div class="btn-row">
-            <button id="btn-reset">Reset zoom</button>
-            <button id="btn-all">Show all</button>
-          </div>
+        <div class="control-row">
+          <div class="control-label"><span>Link distance</span><span id="link-dist-val">400</span></div>
+          <input type="range" id="link-distance" min="100" max="800" value="400">
+        </div>
+        <div class="control-row">
+          <div class="control-label"><span>Charge strength</span><span id="charge-val">-1500</span></div>
+          <input type="range" id="charge" min="-3000" max="-100" value="-1500">
+        </div>
+        <div class="btn-row">
+          <button id="btn-reset" class="btn btn-secondary">Reset zoom</button>
+          <button id="btn-all" class="btn btn-secondary">Show all</button>
         </div>
       </div>
 
       <div class="sidebar-section" id="recents-section" style="display: none;">
-        <div class="sidebar-label">Recent Graphs</div>
+        <div class="sidebar-label">Recent graphs</div>
         <div id="recents-list"></div>
       </div>
 
-
-
     </aside>
 
-    <!-- ── Graph canvas ────────────────────────────────── -->
     <div id="graph-container">
       <div id="empty-state" class="empty-state">
-        <div class="empty-state-icon">🔗</div>
-        <div class="empty-state-text">
-          Enter some text in the input box and click "Generate Graph" to visualize entities and relationships.
+        <div class="empty-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="6" cy="6" r="2.5"></circle>
+            <circle cx="18" cy="6" r="2.5"></circle>
+            <circle cx="12" cy="18" r="2.5"></circle>
+            <path d="M7.7 7.7L11 16M16.3 7.7L13 16M8.5 6h7"></path>
+          </svg>
         </div>
+        <div class="empty-title">Build your first graph</div>
+        <div class="empty-text">Paste text on the left and click <em>Generate Graph</em> to visualize entities and the relationships between them.</div>
       </div>
-      <svg id="graph" style="display: none;">
+
+      <svg id="graph" style="display: none;" width="100%" height="100%">
         <defs>
           <marker id="arrow" viewBox="0 -4 10 8" refX="18" refY="0" markerWidth="6" markerHeight="6" orient="auto">
-            <path d="M0,-4L10,0L0,4" fill="#1e3a5f" />
+            <path d="M0,-4L10,0L0,4" fill="currentColor" />
           </marker>
         </defs>
         <g id="root"></g>
       </svg>
+
       <div id="tooltip"></div>
+
       <div id="node-popup">
         <div class="popup-header">
-          <div class="popup-title" id="popup-title">Node Name</div>
+          <div class="popup-title" id="popup-title">Node</div>
           <div class="popup-close" id="popup-close">×</div>
         </div>
-        <div class="popup-content" id="popup-content">Loading description...</div>
+        <div class="popup-content" id="popup-content">Loading…</div>
       </div>
     </div>
 
   </div>
 
+  <div id="chatbot-container">
+    <div id="chat-window">
+      <div class="chat-header">
+        <div class="chat-header-left">
+          <div class="chat-header-dot"></div>
+          <h3>GraphRAG Assistant</h3>
+        </div>
+        <div class="popup-close" id="close-chat">×</div>
+      </div>
+      <div id="chat-messages">
+        <div class="message-container bot">
+          <div class="message bot">Hi! Ask me anything about the relationships in your graph.</div>
+        </div>
+      </div>
+      <div class="chat-input-area">
+        <input type="text" id="chat-input" placeholder="Ask about relationships…">
+        <button id="send-chat" aria-label="Send">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l14-7-5 14-3-6-6-1z"/></svg>
+        </button>
+      </div>
+    </div>
+    <button id="chat-toggle" aria-label="Open chat">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+      </svg>
+    </button>
+  </div>
+
   <script>
     // ═══════════════════════════════════════════════════════════════════════════
-    // DATA — will be populated from API
+    // DATA & COLOR MAP
     // ═══════════════════════════════════════════════════════════════════════════
     let GRAPH_DATA = { nodes: [], links: [], communities: 0 };
+    let currentData = { nodes: [], links: [] };
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // COLOUR MAP
-    // ═══════════════════════════════════════════════════════════════════════════
-    const COLOR_MAP = {
-      ORGANIZATION: "#4ECDC4",
-      PERSON: "#FF6B6B",
-      LOCATION: "#34d399",
-      EVENT: "#fb923c",
-      OBJECT: "#fde047",
-      CONCEPT: "#86efac",
-      PRODUCT: "#f97316",
-      LEGISLATION: "#60a5fa",
-      LEGAL_CASE: "#FBBF24",
-      GOVERNMENT: "#c084fc",
-      AI_MODEL: "#a78bfa",
-      TECHNOLOGY: "#e879f9",
-      OTHER: "#94a3b8",
-    };
-
+    function cssVar(name) {
+      return getComputedStyle(document.body).getPropertyValue(name).trim();
+    }
     function nodeColor(type) {
-      return COLOR_MAP[type] || COLOR_MAP.OTHER;
+      const key = '--c-' + (type || 'other').toLowerCase();
+      return cssVar(key) || cssVar('--c-other');
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // SETUP
+    // GRAPH LOGIC
     // ═══════════════════════════════════════════════════════════════════════════
-    const svg = d3.select("#graph");
-    const root = d3.select("#root");
-    const tooltip = document.getElementById("tooltip");
     const container = document.getElementById("graph-container");
+    const svg = d3.select("#graph");
+    const root = svg.select("#root");
     const emptyState = document.getElementById("empty-state");
+    const tooltip = document.getElementById("tooltip");
     const nodePopup = document.getElementById("node-popup");
     const popupTitle = document.getElementById("popup-title");
     const popupContent = document.getElementById("popup-content");
 
     document.getElementById("popup-close").addEventListener("click", () => {
-      nodePopup.style.display = "none";
+      nodePopup.classList.remove('open');
+      setTimeout(() => nodePopup.style.display = 'none', 250);
     });
 
     let W = container.clientWidth;
     let H = container.clientHeight;
 
-    // Zoom behaviour
     const zoom = d3.zoom()
-      .scaleExtent([0.1, 4])
+      .scaleExtent([0.05, 10])
       .on("zoom", e => root.attr("transform", e.transform));
     svg.call(zoom);
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // FORCE SIMULATION
-    // ═══════════════════════════════════════════════════════════════════════════
     let simulation = null;
     let nodes = [];
     let links = [];
+    let selectedNode = null;
+    const hiddenTypes = new Set();
 
     function initGraph(data) {
-      console.log("initGraph called with data:", data);
-
-      // Re-measure container size to ensure correct centering
       W = container.clientWidth;
       H = container.clientHeight;
-
       GRAPH_DATA = data;
+      currentData = data;
 
-      // Hide empty state, show graph
       emptyState.style.display = 'none';
-      document.getElementById("graph").style.display = 'block';
+      const svgEl = document.getElementById("graph");
+      svgEl.style.display = 'block';
 
-      // Update stats
+      W = container.clientWidth || window.innerWidth - 340;
+      H = container.clientHeight || window.innerHeight - 80;
+
       document.getElementById("stat-nodes").textContent = data.nodes.length;
       document.getElementById("stat-edges").textContent = data.links.length;
-      document.getElementById("stat-communities").textContent = data.communities || '—';
+      document.getElementById("stat-communities").textContent = data.communities || 0;
 
-      // Prepare nodes and links
       nodes = data.nodes.map(d => ({ ...d }));
       links = data.links.map(d => ({ ...d }));
 
-      // Pre-process links to group multiple relationships between same nodes
+      // Calculate degrees
+      nodes.forEach(n => n.degree = 0);
       links.forEach(l => {
-        let sameEdges = links.filter(o =>
-          (o.source === l.source && o.target === l.target) ||
-          (o.source === l.target && o.target === l.source)
-        );
-        l.linknum = sameEdges.indexOf(l);
-        l.totalEdges = sameEdges.length;
+        const s = nodes.find(n => n.id === (typeof l.source === 'object' ? l.source.id : l.source));
+        const t = nodes.find(n => n.id === (typeof l.target === 'object' ? l.target.id : l.target));
+        if (s) s.degree++;
+        if (t) t.degree++;
       });
 
-      // Spread nodes in a wide circle initially to avoid start-up clustering
       const angleStep = (2 * Math.PI) / nodes.length;
-      const spreadR = Math.min(W, H) * 0.45;
+      const spreadR = Math.min(W, H) * 0.4;
       nodes.forEach((n, i) => {
         const angle = i * angleStep;
         n.x = W / 2 + spreadR * Math.cos(angle) + (Math.random() - 0.5) * 80;
         n.y = H / 2 + spreadR * Math.sin(angle) + (Math.random() - 0.5) * 80;
       });
 
-      // Compute degree for node sizing
-      const degreeMap = {};
-      links.forEach(l => {
-        const srcId = typeof l.source === 'object' ? l.source.id : l.source;
-        const tgtId = typeof l.target === 'object' ? l.target.id : l.target;
-        degreeMap[srcId] = (degreeMap[srcId] || 0) + 1;
-        degreeMap[tgtId] = (degreeMap[tgtId] || 0) + 1;
-      });
-      nodes.forEach(n => { n.degree = degreeMap[n.id] || 1; });
-
       const maxDeg = Math.max(...nodes.map(n => n.degree), 1);
       const minDeg = Math.min(...nodes.map(n => n.degree), 1);
       const nodeRadius = d => {
         const t = (d.degree - minDeg) / (maxDeg - minDeg || 1);
-        return 8 + t * 28;  // 8px → 36px
+        return 9 + t * 22;
       };
 
-      // Stop existing simulation
-      if (simulation) {
-        simulation.stop();
-      }
+      if (simulation) simulation.stop();
 
       const linkDist = +document.getElementById("link-distance").value || 400;
       const chargeSt = +document.getElementById("charge").value || -1500;
 
       simulation = d3.forceSimulation(nodes)
-        .force("link", d3.forceLink(links).id(d => d.id).distance(linkDist).strength(0.3)) // Softer link tension
-        .force("charge", d3.forceManyBody().strength(chargeSt).distanceMax(1500)) // Expanded spacing repulsion
-        .force("center", d3.forceCenter(W / 2, H / 2).strength(0.05))
-        .force("collision", d3.forceCollide().radius(d => d.degree > 2 ? nodeRadius(d) + 90 : nodeRadius(d) + 40)) // Intelligent dynamic collision boundary to shield curved text
-        .alphaDecay(0.012);
+        .force("link", d3.forceLink(links).id(d => d.id).distance(linkDist))
+        .force("charge", d3.forceManyBody().strength(chargeSt))
+        .force("center", d3.forceCenter(W / 2, H / 2))
+        .force("collision", d3.forceCollide().radius(d => nodeRadius(d) + 20))
+        .on("tick", updateGraphLayout);
 
-      // Clear previous elements
       root.selectAll("*").remove();
 
-      // ═══════════════════════════════════════════════════════════════════════════
-      // DRAW LINKS
-      // ═══════════════════════════════════════════════════════════════════════════
-      const linkGroup = root.append("g").attr("class", "links");
+      const linkGroup = root.append("g").attr("class", "links").attr("color", cssVar('--link-stroke'));
       const labelGroup = root.append("g").attr("class", "edge-labels");
       const nodeGroup = root.append("g").attr("class", "nodes");
 
       const link = linkGroup.selectAll("path")
         .data(links)
-        .join("path")
+        .enter().append("path")
         .attr("class", "link")
-        .attr("marker-end", "url(#arrow)")
-        .style("fill", "none");
+        .attr("marker-end", "url(#arrow)");
 
-      function wrapEdgeLabel(d) {
-        const text = d.label || "";
-        if (text.length <= 25) return [text];
-        const words = text.split(/\s+/);
-        let lines = [], curLine = "";
-        for (let w of words) {
-          if (curLine.length + w.length > 25) {
-            lines.push(curLine.trim());
-            curLine = w + " ";
-          } else curLine += w + " ";
-        }
-        if (curLine) lines.push(curLine.trim());
-        if (lines.length > 2) lines = [lines[0], lines[1] + "..."];
-        return lines;
-      }
-
-      // Edge label containers (Background + Text)
-      const edgeLabelContainer = labelGroup.selectAll("g")
+      const edgeLabelContainer = labelGroup.selectAll(".edge-label-container")
         .data(links)
-        .join("g")
+        .enter().append("g")
         .attr("class", "edge-label-container");
 
       edgeLabelContainer.append("rect")
         .attr("class", "edge-label-bg")
-        .attr("width", d => Math.max(...wrapEdgeLabel(d).map(l => l.length)) * 4.6 + 12)
-        .attr("height", d => wrapEdgeLabel(d).length * 10 + 6)
-        .attr("x", d => -(Math.max(...wrapEdgeLabel(d).map(l => l.length)) * 4.6 + 12) / 2)
-        .attr("y", d => -(wrapEdgeLabel(d).length * 10 + 6) / 2)
-        .attr("rx", 3).attr("ry", 3);
+        .attr("width", d => Math.max(...wrapEdgeLabel(d).map(l => l.length)) * 5.2 + 12)
+        .attr("height", d => wrapEdgeLabel(d).length * 11 + 6)
+        .attr("x", d => -(Math.max(...wrapEdgeLabel(d).map(l => l.length)) * 5.2 + 12) / 2)
+        .attr("y", d => -(wrapEdgeLabel(d).length * 11 + 6) / 2);
 
       edgeLabelContainer.each(function (d) {
         const g = d3.select(this);
         const lines = wrapEdgeLabel(d);
-        const textEl = g.append("text").attr("class", "edge-label").attr("dominant-baseline", "middle").style("cursor", "grab");
         lines.forEach((line, i) => {
-          textEl.append("tspan")
-            .attr("x", 0)
-            .attr("dy", i === 0 ? (lines.length === 1 ? "0.3em" : "-0.3em") : "1.2em")
+          g.append("text")
+            .attr("class", "edge-label")
+            .attr("y", (i - (lines.length - 1) / 2) * 11 + 3)
             .text(line);
         });
-        g.append("title").text(d.label);
       });
 
-      edgeLabelContainer.call(d3.drag()
-        .on("start", (e, d) => {
-          e.sourceEvent.stopPropagation();
-          d3.select(e.sourceEvent.target).style("cursor", "grabbing");
-          if (d.dragCx === undefined) {
-            d.dragCx = d.midX !== undefined ? d.midX : (d.source.x + d.target.x) / 2;
-            d.dragCy = d.midY !== undefined ? d.midY : (d.source.y + d.target.y) / 2;
-          }
-        })
-        .on("drag", (e, d) => {
-          d.dragCx += e.dx;
-          d.dragCy += e.dy;
-          if (typeof updateGraphLayout !== 'undefined') updateGraphLayout();
-        })
-        .on("end", (e, d) => {
-          d3.select(e.sourceEvent.target).style("cursor", "grab");
-        })
-      );
-
-      // ═══════════════════════════════════════════════════════════════════════════
-      // DRAW NODES
-      // ═══════════════════════════════════════════════════════════════════════════
-      const node = nodeGroup.selectAll("g")
+      const node = nodeGroup.selectAll(".node")
         .data(nodes)
-        .join("g")
+        .enter().append("g")
         .attr("class", "node")
         .call(d3.drag()
           .on("start", dragStart)
-          .on("drag", dragged)
-          .on("end", dragEnd));
+          .on("drag", (e, d) => {
+            d.dragCx += e.dx;
+            d.dragCy += e.dy;
+            updateGraphLayout();
+          })
+          .on("end", (e, d) => {
+            d3.select(e.sourceEvent.target).style("cursor", "grab");
+            dragEnd(e, d);
+          })
+        );
 
-      // Circle
       node.append("circle")
-        .attr("r", nodeRadius)
+        .attr("r", d => nodeRadius(d))
         .attr("fill", d => nodeColor(d.type));
 
-      function truncateNodeName(str, maxLen = 22) {
-        if (!str) return "";
-        return str.length > maxLen ? str.slice(0, maxLen - 3) + "..." : str;
+      node.append("text")
+        .attr("dy", d => nodeRadius(d) + 16)
+        .text(d => d.label);
+
+      // Helper to wrap long labels
+      function wrapEdgeLabel(d) {
+        const label = d.label || "";
+        if (label.length < 18) return [label];
+        const words = label.split(" ");
+        const lines = [];
+        let cur = words[0];
+        for (let i = 1; i < words.length; i++) {
+          if ((cur + " " + words[i]).length < 18) cur += " " + words[i];
+          else { lines.push(cur); cur = words[i]; }
+        }
+        lines.push(cur);
+        return lines;
       }
 
-      // Label (Always visible, bold)
-      node.append("text")
-        .attr("dy", d => nodeRadius(d) + 14)
-        .text(d => truncateNodeName(d.label));
-
-      node.append("title").text(d => d.label);
-
-      // ═══════════════════════════════════════════════════════════════════════════
-      // SIMULATION TICK
-      // ═══════════════════════════════════════════════════════════════════════════
       function updateGraphLayout() {
         link.attr("d", d => {
           let x1 = d.source.x, y1 = d.source.y;
           let x2 = d.target.x, y2 = d.target.y;
-
           let cx, cy;
           if (d.dragCx !== undefined && d.dragCy !== undefined) {
             cx = 2 * d.dragCx - 0.5 * x1 - 0.5 * x2;
@@ -1058,12 +1317,11 @@
             d.midX = d.dragCx;
             d.midY = d.dragCy;
           } else {
-            if (d.totalEdges <= 1) {
+            if (!d.totalEdges || d.totalEdges === 1) {
               d.midX = (x1 + x2) / 2;
               d.midY = (y1 + y2) / 2;
               return `M${x1},${y1} L${x2},${y2}`;
             }
-
             let offsetIndex = d.linknum;
             if (d.totalEdges % 2 !== 0 && offsetIndex === 0) {
               d.midX = (x1 + x2) / 2;
@@ -1071,27 +1329,19 @@
               return `M${x1},${y1} L${x2},${y2}`;
             }
             if (d.totalEdges % 2 !== 0) offsetIndex -= 1;
-
             let side = offsetIndex % 2 === 0 ? 1 : -1;
-            // Canonical check to fix A->B / B->A anti-parallel collision
             let sid = typeof d.source === "object" ? d.source.id : d.source;
             let tid = typeof d.target === "object" ? d.target.id : d.target;
-            if (sid > tid) { side = -side; }
-
-            // Drastically increase control curve spacing so the focal midpoints shift past label collision bounds
+            if (sid > tid) side = -side;
             let distance = 100 + Math.floor(offsetIndex / 2) * 100;
-
             let dx = x2 - x1, dy = y2 - y1;
             let len = Math.sqrt(dx * dx + dy * dy) || 1;
             let nx = -dy / len, ny = dx / len;
-
             let mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
             cx = mx + nx * distance * side; cy = my + ny * distance * side;
-
             d.midX = 0.25 * x1 + 0.5 * cx + 0.25 * x2;
             d.midY = 0.25 * y1 + 0.5 * cy + 0.25 * y2;
           }
-
           return `M${x1},${y1} Q${cx},${cy} ${x2},${y2}`;
         });
 
@@ -1100,84 +1350,15 @@
           let dy = d.target.y - d.source.y;
           let angle = Math.atan2(dy, dx) * 180 / Math.PI;
           if (angle > 90 || angle < -90) angle += 180;
-
           let tx = d.midX !== undefined ? d.midX : (d.source.x + d.target.x) / 2;
           let ty = d.midY !== undefined ? d.midY : (d.source.y + d.target.y) / 2;
           return `translate(${tx}, ${ty}) rotate(${angle})`;
         });
 
-        node.attr("transform", d => `translate(${d.x},${d.y})`);
-      }
-
-      simulation.on("tick", updateGraphLayout);
-
-      // ═══════════════════════════════════════════════════════════════════════════
-      // TOOLTIP & HOVER
-      // ═══════════════════════════════════════════════════════════════════════════
-      let selectedNode = null;
-
-      node.on("mouseover", (e, d) => {
-        const connections = links.filter(l =>
-          (typeof l.source === 'object' ? l.source.id : l.source) === d.id ||
-          (typeof l.target === 'object' ? l.target.id : l.target) === d.id
-        ).length;
-
-        tooltip.innerHTML = `
-      <div class="tt-name">${d.label}</div>
-      <div class="tt-type" style="color:${nodeColor(d.type)}">${d.type || 'ENTITY'}</div>
-      ${d.description ? `<div class="tt-desc">${d.description}</div>` : ""}
-      <div class="tt-connections"><span>${connections}</span> connection${connections !== 1 ? "s" : ""}</div>
-    `;
-        tooltip.classList.add("visible");
-        positionTooltip(e);
-      })
-        .on("mousemove", positionTooltip)
-        .on("mouseleave", () => tooltip.classList.remove("visible"))
-        .on("click", (e, d) => {
-          e.stopPropagation();
-          if (selectedNode === d.id) {
-            clearSelection();
-          } else {
-            selectNode(d);
-            
-            // Show popup and fetch description
-            popupTitle.textContent = d.label;
-            popupContent.textContent = "Loading description from LLM...";
-            nodePopup.style.display = "flex";
-            
-            const inputTextValue = document.getElementById("input-text").value;
-            fetch("/describe_node", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ entity: d.label, text: inputTextValue })
-            })
-            .then(res => res.json())
-            .then(data => {
-              if (data.description) {
-                popupContent.textContent = data.description;
-              } else {
-                popupContent.textContent = "Could not fetch description.";
-              }
-            })
-            .catch(err => {
-              popupContent.textContent = "Error fetching description.";
-            });
-          }
-        });
-
-      svg.on("click", clearSelection);
-
-      function positionTooltip(e) {
-        const rect = container.getBoundingClientRect();
-        let x = e.clientX - rect.left + 14;
-        let y = e.clientY - rect.top - 10;
-        if (x + 280 > W) x = e.clientX - rect.left - 280;
-        tooltip.style.left = x + "px";
-        tooltip.style.top = y + "px";
+        node.attr("transform", d => `translate(${d.x}, ${d.y})`);
       }
 
       function selectNode(d) {
-        selectedNode = d.id;
         const connectedIds = new Set([d.id]);
         links.forEach(l => {
           const srcId = typeof l.source === 'object' ? l.source.id : l.source;
@@ -1185,242 +1366,247 @@
           if (srcId === d.id) connectedIds.add(tgtId);
           if (tgtId === d.id) connectedIds.add(srcId);
         });
-
         node.classed("selected", n => n.id === d.id);
         node.classed("dimmed", n => !connectedIds.has(n.id));
         link.classed("highlighted", l => {
-          const srcId = typeof l.source === 'object' ? l.source.id : l.source;
-          const tgtId = typeof l.target === 'object' ? l.target.id : l.target;
-          return srcId === d.id || tgtId === d.id;
+          const sid = typeof l.source === 'object' ? l.source.id : l.source;
+          const tid = typeof l.target === 'object' ? l.target.id : l.target;
+          return sid === d.id || tid === d.id;
         });
         link.classed("dimmed", l => {
-          const srcId = typeof l.source === 'object' ? l.source.id : l.source;
-          const tgtId = typeof l.target === 'object' ? l.target.id : l.target;
-          return srcId !== d.id && tgtId !== d.id;
+          const sid = typeof l.source === 'object' ? l.source.id : l.source;
+          const tid = typeof l.target === 'object' ? l.target.id : l.target;
+          return sid !== d.id && tid !== d.id;
         });
+        selectedNode = d.id;
       }
 
       function clearSelection() {
         selectedNode = null;
         node.classed("selected dimmed", false);
         link.classed("highlighted dimmed", false);
-        if(nodePopup) nodePopup.style.display = "none";
+        if (nodePopup.classList.contains('open')) {
+          nodePopup.classList.remove('open');
+          setTimeout(() => nodePopup.style.display = 'none', 250);
+        }
       }
 
-      // ═══════════════════════════════════════════════════════════════════════════
-      // DRAG
-      // ═══════════════════════════════════════════════════════════════════════════
       function dragStart(e, d) {
         if (!e.active) simulation.alphaTarget(0.3).restart();
         d.fx = d.x; d.fy = d.y;
+        d.dragCx = d.midX; d.dragCy = d.midY;
       }
-      function dragged(e, d) { d.fx = e.x; d.fy = e.y; }
       function dragEnd(e, d) {
         if (!e.active) simulation.alphaTarget(0);
         d.fx = null; d.fy = null;
       }
 
-      // ═══════════════════════════════════════════════════════════════════════════
-      // LEGEND & FILTERING
-      // ═══════════════════════════════════════════════════════════════════════════
+      // ── Legend ─────────────────────────────────────────────
+      const legendEl = document.getElementById("legend");
+      legendEl.innerHTML = "";
       const typeCounts = {};
       nodes.forEach(n => { typeCounts[n.type] = (typeCounts[n.type] || 0) + 1; });
 
-      const hiddenTypes = new Set();
-      const legendEl = document.getElementById("legend");
       const filterStateEl = document.getElementById("filter-state");
-      legendEl.innerHTML = '';
-
       function updateFilterState() {
         if (!filterStateEl) return;
         const totalCheckboxes = document.querySelectorAll("#legend input[type='checkbox']").length;
         const visibleCount = totalCheckboxes - hiddenTypes.size;
-        
-        if (hiddenTypes.size === 0) filterStateEl.textContent = "Showing: All";
-        else if (visibleCount === 0) filterStateEl.textContent = "Showing: None";
+        if (hiddenTypes.size === 0) filterStateEl.textContent = "Showing all";
+        else if (visibleCount === 0) filterStateEl.textContent = "Showing none";
         else if (visibleCount === 1) {
-          let activeCb = Array.from(document.querySelectorAll("#legend input[type='checkbox']")).find(cb => cb.checked);
-          filterStateEl.textContent = `Showing: ${activeCb ? activeCb.value : ''}`;
-        } else {
-          filterStateEl.textContent = `Showing: ${visibleCount} types`;
-        }
+          const cb = Array.from(document.querySelectorAll("#legend input[type='checkbox']")).find(c => c.checked);
+          filterStateEl.textContent = `Showing: ${cb ? cb.value : ''}`;
+        } else filterStateEl.textContent = `Showing ${visibleCount} types`;
       }
 
-      // Ensure these required ones are exactly displayed in checkboxes
-      const CORE_TYPES = ["PERSON", "CONCEPT", "LOCATION", "EVENT", "OBJECT", "ORGANIZATION"];
-      const typesToRender = Array.from(new Set([...Object.keys(typeCounts), ...CORE_TYPES]));
-
+      const typesToRender = Object.keys(typeCounts).sort();
       typesToRender.forEach(type => {
-        const color = COLOR_MAP[type] || COLOR_MAP.OTHER;
+        const color = nodeColor(type);
         const count = typeCounts[type] || 0;
-        
         const item = document.createElement("label");
         item.className = "legend-item";
-        item.style.display = "flex";
-        item.style.alignItems = "center";
-        item.style.cursor = "pointer";
-        item.style.padding = "2px 0";
-
         const isChecked = !hiddenTypes.has(type);
-
         item.innerHTML = `
-      <input type="checkbox" value="${type}" ${isChecked ? 'checked' : ''} style="margin-right: 8px; cursor: pointer;">
-      <div class="legend-dot" style="background:${color}; width:10px; height:10px; min-width:10px; border-radius:50%; margin-right:6px; display:inline-block;"></div>
-      <span class="legend-name" style="flex:1;">${type}</span>
-      <span class="legend-count" style="color:var(--text-muted); font-size:11px;">(${count})</span>
-    `;
-
+          <input type="checkbox" value="${type}" ${isChecked ? 'checked' : ''}>
+          <div class="legend-dot" style="background:${color};"></div>
+          <span class="legend-name">${type}</span>
+          <span class="legend-count">${count}</span>
+        `;
         const checkbox = item.querySelector("input");
         checkbox.addEventListener("change", (e) => {
           if (e.target.checked) hiddenTypes.delete(type);
           else hiddenTypes.add(type);
-
           applyTypeFilter();
           updateFilterState();
-
-          // Reprocess search dynamically over new filtered subset
           document.getElementById("search-form").dispatchEvent(new Event("submit"));
         });
-
         legendEl.appendChild(item);
       });
 
-      updateFilterState();
-
-      const btnClearFilters = document.getElementById("btn-clear-filters");
-      if (btnClearFilters) {
-        btnClearFilters.addEventListener("click", () => {
-          hiddenTypes.clear();
-          document.querySelectorAll("#legend input[type='checkbox']").forEach(cb => cb.checked = true);
-          applyTypeFilter();
-          updateFilterState();
-          clearSelection();
-          document.getElementById("search-form").dispatchEvent(new Event("submit"));
-        });
-      }
+      document.getElementById("btn-clear-filters").onclick = () => {
+        hiddenTypes.clear();
+        document.querySelectorAll("#legend input[type='checkbox']").forEach(cb => cb.checked = true);
+        applyTypeFilter();
+        updateFilterState();
+        clearSelection();
+      };
 
       function applyTypeFilter() {
         node.style("display", d => hiddenTypes.has(d.type) ? "none" : null);
         link.style("display", d => {
-          const sType = d.source.type;
-          const tType = d.target.type;
-          return hiddenTypes.has(sType) || hiddenTypes.has(tType) ? "none" : null;
+          const sid = typeof d.source === "object" ? d.source.id : d.source;
+          const tid = typeof d.target === "object" ? d.target.id : d.target;
+          const s = nodes.find(n => n.id === sid);
+          const t = nodes.find(n => n.id === tid);
+          if (s && hiddenTypes.has(s.type)) return "none";
+          if (t && hiddenTypes.has(t.type)) return "none";
+          return null;
+        });
+        edgeLabelContainer.style("display", d => {
+          const sid = typeof d.source === "object" ? d.source.id : d.source;
+          const tid = typeof d.target === "object" ? d.target.id : d.target;
+          const s = nodes.find(n => n.id === sid);
+          const t = nodes.find(n => n.id === tid);
+          if (s && hiddenTypes.has(s.type)) return "none";
+          if (t && hiddenTypes.has(t.type)) return "none";
+          return null;
         });
       }
 
-      // ═══════════════════════════════════════════════════════════════════════════
-      // SEARCH
-      // ═══════════════════════════════════════════════════════════════════════════
+      // Mouse events for nodes
+      node.on("mouseenter", (e, d) => {
+        const connectedIds = new Set([d.id]);
+        links.forEach(l => {
+          const sid = typeof l.source === 'object' ? l.source.id : l.source;
+          const tid = typeof l.target === 'object' ? l.target.id : l.target;
+          if (sid === d.id) connectedIds.add(tid);
+          if (tid === d.id) connectedIds.add(sid);
+        });
+
+        tooltip.innerHTML = `
+          <div class="tt-type" style="color:${nodeColor(d.type)}">${d.type}</div>
+          <div class="tt-name">${d.label}</div>
+          <div class="tt-connections">Connections: <span>${connectedIds.size - 1}</span></div>
+        `;
+        tooltip.classList.add("visible");
+        positionTooltip(e);
+      })
+      .on("mousemove", positionTooltip)
+      .on("mouseleave", () => tooltip.classList.remove("visible"))
+      .on("click", (e, d) => {
+        e.stopPropagation();
+        if (selectedNode === d.id) {
+          clearSelection();
+        } else {
+          selectNode(d);
+          popupTitle.textContent = d.label;
+          popupContent.textContent = "Loading description…";
+          nodePopup.style.display = "flex";
+          requestAnimationFrame(() => nodePopup.classList.add('open'));
+
+          const inputTextValue = document.getElementById("input-text").value;
+          fetch("/describe_node", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ entity: d.label, text: inputTextValue })
+          })
+          .then(res => res.json())
+          .then(data => {
+            popupContent.textContent = data.description || "Could not fetch description.";
+          })
+          .catch(() => { popupContent.textContent = "Error fetching description."; });
+        }
+      });
+
+      svg.on("click", clearSelection);
+
+      function positionTooltip(e) {
+        const rect = container.getBoundingClientRect();
+        let x = e.clientX - rect.left + 14;
+        let y = e.clientY - rect.top - 10;
+        if (x + 300 > W) x = e.clientX - rect.left - 300;
+        tooltip.style.left = x + "px";
+        tooltip.style.top = y + "px";
+      }
+
+      // ── Search ─────────────────────────────────────────────
       const searchForm = document.getElementById("search-form");
       const searchInput = document.getElementById("search");
       const searchFeedback = document.getElementById("search-feedback");
       const btnClear = document.getElementById("btn-clear");
 
-      searchForm.addEventListener("submit", e => {
-        e.preventDefault();
-        performSearch();
-      });
-
-      btnClear.addEventListener("click", () => {
+      searchForm.onsubmit = e => { e.preventDefault(); performSearch(); };
+      btnClear.onclick = () => {
         searchInput.value = "";
         searchFeedback.style.display = "none";
         clearSelection();
-        svg.transition().duration(500).call(
-          zoom.transform, d3.zoomIdentity.translate(0, 0).scale(1)
-        );
-      });
-
-      searchInput.addEventListener("input", e => {
-        if (e.target.value.trim() === "") {
+        svg.call(zoom.transform, d3.zoomIdentity);
+      };
+      searchInput.oninput = e => {
+        if (!e.target.value.trim()) {
           searchFeedback.style.display = "none";
           clearSelection();
         }
-      });
+      };
 
       function performSearch() {
         const q = searchInput.value.toLowerCase().trim();
-        if (!q) {
-          clearSelection();
-          searchFeedback.style.display = "none";
-          return;
-        }
-
+        if (!q) { clearSelection(); searchFeedback.style.display = "none"; return; }
         searchFeedback.style.display = "none";
-
-        let exactMatch = null;
-        let partialMatch = null;
-
-        for (let i = 0; i < nodes.length; i++) {
-          const n = nodes[i];
+        let exactMatch = null, partialMatch = null;
+        for (let n of nodes) {
           if (hiddenTypes.has(n.type)) continue;
-
-          const label = n.label || "";
-          const lowerLabel = label.toLowerCase();
-          
-          if (lowerLabel === q) {
-            exactMatch = n;
-            break;
-          } else if (!partialMatch && lowerLabel.includes(q)) {
-            partialMatch = n;
-          }
+          const lowerLabel = (n.label || "").toLowerCase();
+          if (lowerLabel === q) { exactMatch = n; break; }
+          else if (!partialMatch && lowerLabel.includes(q)) partialMatch = n;
         }
-
         const match = exactMatch || partialMatch;
-
         if (match) {
           selectNode(match);
           const scale = 1.5;
           const x = W / 2 - match.x * scale;
           const y = H / 2 - match.y * scale;
-          svg.transition().duration(750).call(
-            zoom.transform,
-            d3.zoomIdentity.translate(x, y).scale(scale)
-          );
+          svg.call(zoom.transform, d3.zoomIdentity.translate(x, y).scale(scale));
         } else {
           clearSelection();
           searchFeedback.style.display = "block";
-          searchFeedback.textContent = "No node found";
         }
       }
 
-      // ═══════════════════════════════════════════════════════════════════════════
-      // CONTROLS
-      // ═══════════════════════════════════════════════════════════════════════════
-      document.getElementById("link-distance").addEventListener("input", e => {
+      // ── Controls ───────────────────────────────────────────
+      const linkDistEl = document.getElementById("link-distance");
+      const linkDistVal = document.getElementById("link-dist-val");
+      const chargeEl = document.getElementById("charge");
+      const chargeVal = document.getElementById("charge-val");
+
+      linkDistEl.oninput = e => {
         const val = +e.target.value;
-        simulation.force("link").distance(d => val);
+        linkDistVal.textContent = val;
+        simulation.force("link").distance(() => val);
         simulation.alpha(0.5).restart();
-      });
-      document.getElementById("link-distance").addEventListener("change", e => {
-        simulation.alpha(1).restart();
-      });
-
-      document.getElementById("charge").addEventListener("input", e => {
+      };
+      chargeEl.oninput = e => {
         const val = +e.target.value;
-        simulation.force("charge").strength(d => val);
+        chargeVal.textContent = val;
+        simulation.force("charge").strength(() => val);
         simulation.alpha(0.5).restart();
-      });
-      document.getElementById("charge").addEventListener("change", e => {
-        simulation.alpha(1).restart();
-      });
+      };
+      linkDistVal.textContent = linkDistEl.value;
+      chargeVal.textContent = chargeEl.value;
 
-      document.getElementById("btn-reset").addEventListener("click", () => {
-        svg.transition().duration(500).call(
-          zoom.transform, d3.zoomIdentity.translate(0, 0).scale(1)
-        );
-      });
-
-      document.getElementById("btn-all").addEventListener("click", () => {
+      document.getElementById("btn-reset").onclick = () => {
+        svg.call(zoom.transform, d3.zoomIdentity);
+      };
+      document.getElementById("btn-all").onclick = () => {
         hiddenTypes.clear();
-        document.querySelectorAll(".legend-item").forEach(el => el.classList.remove("disabled"));
+        document.querySelectorAll("#legend input[type='checkbox']").forEach(cb => cb.checked = true);
         applyTypeFilter();
+        updateFilterState();
         clearSelection();
-      });
+      };
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // RESIZE
-    // ═══════════════════════════════════════════════════════════════════════════
     window.addEventListener("resize", () => {
       W = container.clientWidth;
       H = container.clientHeight;
@@ -1431,7 +1617,7 @@
     });
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // GENERATE BUTTON - API CALL
+    // GENERATE
     // ═══════════════════════════════════════════════════════════════════════════
     const generateBtn = document.getElementById("generate-btn");
     const inputText = document.getElementById("input-text");
@@ -1441,116 +1627,74 @@
     fileUpload.addEventListener("change", (e) => {
       const file = e.target.files[0];
       if (!file) return;
-
       const reader = new FileReader();
-      reader.onload = (event) => {
-        inputText.value = event.target.result;
-        generateBtn.click(); // Auto-trigger generation
+      reader.onload = ev => {
+        inputText.value = ev.target.result;
+        generateBtn.click();
       };
       reader.readAsText(file);
     });
 
     generateBtn.addEventListener("click", async () => {
       const text = inputText.value.trim();
-
-      // Validation
       if (!text) {
         errorMsg.textContent = "Please enter some text to generate a graph.";
         errorMsg.classList.add("visible");
         return;
       }
-
       if (text.length < 20) {
         errorMsg.textContent = "Please enter at least 20 characters for meaningful results.";
         errorMsg.classList.add("visible");
         return;
       }
-
-      // Clear error
       errorMsg.classList.remove("visible");
 
-      // Show loading state
       generateBtn.disabled = true;
-      generateBtn.classList.add("loading");
-      generateBtn.textContent = "Generating...";
+      generateBtn.innerHTML = '<span class="spinner"></span> Generating…';
 
       try {
         const response = await fetch("/generate", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ text })
         });
-
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.error || "Failed to generate graph");
         }
-
         const data = await response.json();
-        console.log("Received graph data:", data);
-
         if (!data.nodes || data.nodes.length === 0) {
-          throw new Error("No entities could be extracted from the text. Try a longer paragraph.");
+          throw new Error("No entities could be extracted. Try a longer paragraph.");
         }
-
-        // Update metadata indicators
-        document.getElementById("stat-method").textContent = data.extraction_method || "Unknown";
-        document.getElementById("stat-search").textContent = data.search_augmented ? "Yes" : "No";
-
-        // Save to recents
+        document.getElementById("stat-method").textContent = data.extraction_method || "—";
+        document.getElementById("stat-search").textContent = data.search_augmented ? "yes" : "no";
         saveToRecents(text, data);
-
         initGraph(data);
-
       } catch (err) {
-        errorMsg.textContent = err.message || "An error occurred while generating the graph.";
+        errorMsg.textContent = err.message || "An error occurred.";
         errorMsg.classList.add("visible");
       } finally {
         generateBtn.disabled = false;
-        generateBtn.classList.remove("loading");
-        generateBtn.textContent = "Generate Graph";
-      }
-    });
-
-    // Allow Enter key in textarea to not trigger button (Shift+Enter for new line)
-    inputText.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        generateBtn.click();
+        generateBtn.innerHTML = 'Generate Graph';
       }
     });
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // RECENTS LOGIC
+    // RECENTS
     // ═══════════════════════════════════════════════════════════════════════════
     function saveToRecents(text, data) {
       let recents = JSON.parse(localStorage.getItem('recentGraphs') || '[]');
-      
-      // Create a short title from the text
-      const title = text.length > 30 ? text.substring(0, 30) + "..." : text;
-      
-      // Remove existing item if it has the exact same text to avoid duplicates
+      const title = text.length > 30 ? text.substring(0, 30) + "…" : text;
       recents = recents.filter(item => item.text !== text);
-      
       const newItem = {
         id: Date.now().toString(),
-        title: title,
-        text: text,
+        title, text,
         date: new Date().toLocaleString(),
         nodesCount: data.nodes.length,
-        data: data
+        data
       };
-      
-      // Add to beginning
       recents.unshift(newItem);
-      
-      // Keep only last 10
-      if (recents.length > 10) {
-        recents = recents.slice(0, 10);
-      }
-      
+      if (recents.length > 10) recents = recents.slice(0, 10);
       localStorage.setItem('recentGraphs', JSON.stringify(recents));
       renderRecents();
     }
@@ -1559,97 +1703,83 @@
       const recents = JSON.parse(localStorage.getItem('recentGraphs') || '[]');
       const recentsSection = document.getElementById('recents-section');
       const recentsList = document.getElementById('recents-list');
-      
-      if (recents.length === 0) {
-        recentsSection.style.display = 'none';
-        return;
-      }
-      
+      if (recents.length === 0) { recentsSection.style.display = 'none'; return; }
       recentsSection.style.display = 'block';
       recentsList.innerHTML = '';
-      
       recents.forEach((item, index) => {
         const div = document.createElement('div');
         div.className = 'recent-item';
         div.innerHTML = `
           <div class="recent-header">
             <div class="recent-title">${item.title}</div>
-            <button class="recent-delete" title="Delete Graph">×</button>
+            <button class="recent-delete" title="Delete">×</button>
           </div>
-          <div class="recent-meta">${item.date} • ${item.nodesCount} nodes</div>
+          <div class="recent-meta">${item.date} · ${item.nodesCount} nodes</div>
         `;
-        
-        const deleteBtn = div.querySelector('.recent-delete');
-        deleteBtn.addEventListener('click', async (e) => {
-          e.stopPropagation(); // Prevent the item click from firing
-          
+        div.querySelector('.recent-delete').addEventListener('click', async (e) => {
+          e.stopPropagation();
           const textToDelete = item.text;
-          
           recents.splice(index, 1);
           localStorage.setItem('recentGraphs', JSON.stringify(recents));
-          renderRecents(); // Re-render the list immediately for snappiness
-
-          // Make backend request to delete from ChromaDB
+          renderRecents();
           try {
             await fetch('/delete_graph', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ text: textToDelete })
             });
-            console.log("Deleted graph from Vector DB successfully.");
-          } catch (err) {
-            console.error("Failed to delete graph from Vector DB", err);
-          }
+          } catch (err) { console.error("Delete failed", err); }
         });
-        
         div.addEventListener('click', () => {
-          // Restore text
           inputText.value = item.text;
-          
-          // Restore metadata
-          document.getElementById("stat-method").textContent = item.data.extraction_method || "Unknown";
-          document.getElementById("stat-search").textContent = item.data.search_augmented ? "Yes" : "No";
-          
-          // Render graph
+          document.getElementById("stat-method").textContent = item.data.extraction_method || "—";
+          document.getElementById("stat-search").textContent = item.data.search_augmented ? "yes" : "no";
           initGraph(item.data);
-          
-          // Move to top of recents
           saveToRecents(item.text, item.data);
         });
-        
         recentsList.appendChild(div);
       });
     }
-
-    // Initial render
     renderRecents();
 
-  </script>
-
-  <div id="chatbot-container">
-    <div id="chat-window">
-      <div class="chat-header">
-        <h3>GraphRAG Chatbot</h3>
-        <span class="popup-close" id="close-chat">×</span>
-      </div>
-      <div id="chat-messages">
-        <div class="message bot">Hello! I can answer questions about the relationships in the graph using GraphRAG. Ask me anything!</div>
-      </div>
-      <div class="chat-input-area">
-        <input type="text" id="chat-input" placeholder="Ask about relationships...">
-        <button id="send-chat">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
-        </button>
-      </div>
-    </div>
-    <div id="chat-toggle">
-      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"></path></svg>
-    </div>
-  </div>
-
-  <script>
     // ═══════════════════════════════════════════════════════════════════════════
-    // CHATBOT LOGIC
+    // THEME
+    // ═══════════════════════════════════════════════════════════════════════════
+    const themeToggle = document.getElementById('theme-toggle');
+    const themeIcon = document.getElementById('theme-icon');
+    const themeText = document.getElementById('theme-text');
+
+    const SUN_SVG = '<circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>';
+    const MOON_SVG = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>';
+
+    function setTheme(theme) {
+      if (theme === 'dark') {
+        document.body.classList.add('dark-mode');
+        themeIcon.innerHTML = SUN_SVG;
+        themeText.textContent = 'Dark';
+      } else {
+        document.body.classList.remove('dark-mode');
+        themeIcon.innerHTML = MOON_SVG;
+        themeText.textContent = 'Light';
+      }
+      localStorage.setItem('theme', theme);
+      // Refresh node colors that come from CSS vars
+      if (currentData.nodes && currentData.nodes.length) {
+        d3.selectAll('.node circle').attr('fill', d => nodeColor(d.type));
+        d3.selectAll('.legend-dot').each(function() {
+          const label = this.parentElement.querySelector('.legend-name')?.textContent;
+          if (label) this.style.background = nodeColor(label);
+        });
+      }
+    }
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    setTheme(savedTheme);
+    themeToggle.addEventListener('click', () => {
+      setTheme(document.body.classList.contains('dark-mode') ? 'light' : 'dark');
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CHATBOT
     // ═══════════════════════════════════════════════════════════════════════════
     const chatToggle = document.getElementById('chat-toggle');
     const chatWindow = document.getElementById('chat-window');
@@ -1659,13 +1789,12 @@
     const chatMessages = document.getElementById('chat-messages');
 
     let chatOpen = false;
-    let chatHistory = []; // Track conversation history
+    let chatHistory = [];
 
     chatToggle.addEventListener('click', () => {
       chatOpen = !chatOpen;
       chatWindow.classList.toggle('open', chatOpen);
     });
-
     closeChat.addEventListener('click', () => {
       chatOpen = false;
       chatWindow.classList.remove('open');
@@ -1674,91 +1803,53 @@
     function addMessage(text, side, isLoading = false) {
       const container = document.createElement('div');
       container.className = `message-container ${side}`;
-      
       const msg = document.createElement('div');
       msg.className = `message ${side} ${isLoading ? 'loading' : ''}`;
-      
-      if (isLoading) {
-        msg.textContent = text;
-      } else {
-        // Render Markdown
-        msg.innerHTML = marked.parse(text);
-      }
-      
+      if (isLoading) msg.textContent = text;
+      else msg.innerHTML = marked.parse(text);
       container.appendChild(msg);
 
       if (!isLoading) {
         const actions = document.createElement('div');
         actions.className = 'message-actions';
-        
-        // Copy Button
         const copyBtn = document.createElement('button');
         copyBtn.className = 'action-btn';
         copyBtn.title = 'Copy';
-        copyBtn.innerHTML = `
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-          </svg>`;
+        copyBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
         copyBtn.onclick = () => {
           navigator.clipboard.writeText(text);
           copyBtn.style.color = 'var(--accent)';
           setTimeout(() => copyBtn.style.color = '', 1000);
         };
-        
         actions.appendChild(copyBtn);
 
-        // TTS (Text-to-Speech) Button
         const ttsBtn = document.createElement('button');
         ttsBtn.className = 'action-btn';
         ttsBtn.title = 'Speak';
-        ttsBtn.innerHTML = `
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
-          </svg>`;
-        
+        ttsBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>';
         ttsBtn.onclick = () => {
-          // If already speaking this message, stop it
           if (window.speechSynthesis.speaking) {
             window.speechSynthesis.cancel();
             ttsBtn.style.color = '';
             return;
           }
-
-          const utterance = new SpeechSynthesisUtterance(text);
-          
-          // Visual feedback
-          utterance.onstart = () => ttsBtn.style.color = 'var(--accent)';
-          utterance.onend = () => ttsBtn.style.color = '';
-          utterance.onerror = () => ttsBtn.style.color = '';
-          
-          window.speechSynthesis.speak(utterance);
+          const u = new SpeechSynthesisUtterance(text);
+          u.onstart = () => ttsBtn.style.color = 'var(--accent)';
+          u.onend = () => ttsBtn.style.color = '';
+          window.speechSynthesis.speak(u);
         };
-        
         actions.appendChild(ttsBtn);
 
-        // Edit Button (only for user messages)
         if (side === 'user') {
           const editBtn = document.createElement('button');
           editBtn.className = 'action-btn';
           editBtn.title = 'Edit';
-          editBtn.innerHTML = `
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-            </svg>`;
-          editBtn.onclick = () => {
-            chatInput.value = text;
-            chatInput.focus();
-          };
+          editBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>';
+          editBtn.onclick = () => { chatInput.value = text; chatInput.focus(); };
           actions.appendChild(editBtn);
         }
-
         container.appendChild(actions);
       }
-
       chatMessages.appendChild(container);
       chatMessages.scrollTop = chatMessages.scrollHeight;
       return msg;
@@ -1767,68 +1858,38 @@
     async function handleChat() {
       const query = chatInput.value.trim();
       if (!query) return;
-
       chatInput.value = '';
       addMessage(query, 'user');
-      
-      // Add to history
       chatHistory.push({ role: 'user', content: query });
-
-      const loadingMsg = addMessage('Analyzing graph data...', 'bot', true);
-
-      // Get current graph data
-      const graphData = {
-        nodes: currentData.nodes,
-        links: currentData.links
-      };
+      const loadingMsg = addMessage('Analyzing graph data…', 'bot', true);
 
       try {
         const response = await fetch('/query', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            query: query,
-            nodes: graphData.nodes,
-            links: graphData.links,
-            history: chatHistory // Send history for follow-up support
+          body: JSON.stringify({
+            query,
+            nodes: currentData.nodes,
+            links: currentData.links,
+            history: chatHistory
           })
         });
-
-        if (!response.ok) throw new Error("Failed to get answer");
+        if (!response.ok) throw new Error();
         const data = await response.json();
-        
-        loadingMsg.remove();
+        loadingMsg.parentElement.remove();
         const botMsg = data.answer || "I'm not sure how to answer that based on the current graph.";
         addMessage(botMsg, 'bot');
-        
-        // Add bot response to history
         chatHistory.push({ role: 'assistant', content: botMsg });
-        
-        // Keep history manageable
         if (chatHistory.length > 10) chatHistory = chatHistory.slice(-10);
-
       } catch (err) {
-        loadingMsg.remove();
+        loadingMsg.parentElement.remove();
         addMessage("Sorry, I encountered an error communicating with the GraphRAG service.", 'bot');
       }
     }
 
     sendChat.addEventListener('click', handleChat);
-    chatInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') handleChat();
-    });
-
-    // We need to ensure 'currentData' is accessible globally
-    let currentData = { nodes: [], links: [] };
-
-    // Update the existing initGraph to store the data
-    const originalInitGraph = initGraph;
-    initGraph = function(data) {
-      currentData = data;
-      originalInitGraph(data);
-    };
+    chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleChat(); });
 
   </script>
 </body>
-
 </html>

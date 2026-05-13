@@ -16,6 +16,8 @@
       --text: #e2e8f0;
       --text-muted: #64748b;
       --accent: #38bdf8;
+      --graph-bg: radial-gradient(circle at center, #1a202c 0%, #0b0e14 100%);
+      --shadow: rgba(0, 0, 0, 0.5);
 
       --c-org: #4ECDC4;
       --c-person: #FF6B6B;
@@ -25,6 +27,26 @@
       --c-gov: #c084fc;
       --c-ai: #fb923c;
       --c-other: #94a3b8;
+    }
+
+    body.light-mode {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --accent: #0284c7;
+      --graph-bg: radial-gradient(circle at center, #f8fafc 0%, #e2e8f0 100%);
+      --shadow: rgba(0, 0, 0, 0.05);
+
+      --c-org: #0369a1;
+      --c-person: #b45309;
+      --c-leg: #be123c;
+      --c-case: #92400e;
+      --c-concept: #7e22ce;
+      --c-gov: #15803d;
+      --c-ai: #c2410c;
+      --c-other: #64748b;
     }
 
     * {
@@ -253,6 +275,7 @@
       flex: 1;
       position: relative;
       overflow: hidden;
+      background: var(--graph-bg);
     }
 
     svg {
@@ -342,7 +365,7 @@
       transition: opacity 0.15s;
       max-width: 260px;
       z-index: 10;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 8px 24px var(--shadow);
     }
 
     #tooltip.visible {
@@ -383,6 +406,25 @@
     .tt-connections span {
       color: var(--accent);
     }
+
+    .theme-toggle {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .theme-toggle:hover {
+      border-color: var(--accent);
+    }
   </style>
 </head>
 
@@ -395,6 +437,10 @@
       edges <span id="stat-edges">—</span> &nbsp;|&nbsp;
       communities <span id="stat-communities">—</span>
     </div>
+    <button id="theme-toggle" class="theme-toggle">
+      <span id="theme-icon">🌙</span>
+      <span id="theme-text">Dark</span>
+    </button>
   </header>
 
   <div class="layout">
@@ -890,6 +936,36 @@
       H = container.clientHeight;
       simulation.force("center", d3.forceCenter(W / 2, H / 2));
       simulation.alpha(0.1).restart();
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // THEME TOGGLE LOGIC
+    // ═══════════════════════════════════════════════════════════════════════════
+    const themeToggle = document.getElementById('theme-toggle');
+    const themeIcon = document.getElementById('theme-icon');
+    const themeText = document.getElementById('theme-text');
+    
+    function setTheme(theme) {
+      if (theme === 'light') {
+        document.body.classList.add('light-mode');
+        themeIcon.textContent = '☀️';
+        themeText.textContent = 'Light';
+        localStorage.setItem('theme_template', 'light');
+      } else {
+        document.body.classList.remove('light-mode');
+        themeIcon.textContent = '🌙';
+        themeText.textContent = 'Dark';
+        localStorage.setItem('theme_template', 'dark');
+      }
+    }
+
+    // Check saved preference
+    const savedTheme = localStorage.getItem('theme_template') || 'dark';
+    setTheme(savedTheme);
+
+    themeToggle.addEventListener('click', () => {
+      const isLight = document.body.classList.contains('light-mode');
+      setTheme(isLight ? 'dark' : 'light');
     });
   </script>
 </body>
