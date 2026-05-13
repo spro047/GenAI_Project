@@ -1072,6 +1072,11 @@
         </div>
       </div>
 
+      <div class="sidebar-section" id="recent-reports-section" style="display: none;">
+        <div class="sidebar-label">Recent Reports</div>
+        <div id="recent-reports-list"></div>
+      </div>
+
       <div class="sidebar-section" id="recents-section" style="display: none;">
         <div class="sidebar-label">Recent graphs</div>
         <div id="recents-list"></div>
@@ -1679,6 +1684,8 @@
         requestAnimationFrame(() => reportModal.classList.add("open"));
         btnExportPdf.style.display = "inline-flex";
         
+        saveReportToRecents(data.report, GRAPH_DATA.nodes);
+        
       } catch (err) {
         alert("Error generating report: " + err.message);
       } finally {
@@ -1726,6 +1733,59 @@
       originalInitGraphReport(data);
       toggleReportSection(true);
     };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // RECENT REPORTS
+    // ═══════════════════════════════════════════════════════════════════════════
+    function saveReportToRecents(report, nodes) {
+      let recents = JSON.parse(localStorage.getItem('recentReports') || '[]');
+      const title = nodes.length > 0 ? "Report: " + nodes[0].label + "..." : "New Strategic Report";
+      // Filter out existing exact reports if needed, but usually we just add new ones
+      const newItem = {
+        id: Date.now().toString(),
+        title, report,
+        date: new Date().toLocaleString(),
+      };
+      recents.unshift(newItem);
+      if (recents.length > 8) recents = recents.slice(0, 8);
+      localStorage.setItem('recentReports', JSON.stringify(recents));
+      renderRecentReports();
+    }
+
+    function renderRecentReports() {
+      const recents = JSON.parse(localStorage.getItem('recentReports') || '[]');
+      const section = document.getElementById('recent-reports-section');
+      const list = document.getElementById('recent-reports-list');
+      if (recents.length === 0) { section.style.display = 'none'; return; }
+      section.style.display = 'block';
+      list.innerHTML = '';
+      recents.forEach((item, index) => {
+        const div = document.createElement('div');
+        div.className = 'recent-item';
+        div.innerHTML = `
+          <div class="recent-header">
+            <div class="recent-title">${item.title}</div>
+            <button class="recent-delete" title="Delete">×</button>
+          </div>
+          <div class="recent-meta">${item.date}</div>
+        `;
+        div.querySelector('.recent-delete').addEventListener('click', (e) => {
+          e.stopPropagation();
+          recents.splice(index, 1);
+          localStorage.setItem('recentReports', JSON.stringify(recents));
+          renderRecentReports();
+        });
+        div.addEventListener('click', () => {
+          lastGeneratedReport = item.report;
+          reportContent.innerHTML = marked.parse(item.report);
+          reportModal.style.display = "flex";
+          requestAnimationFrame(() => reportModal.classList.add("open"));
+          btnExportPdf.style.display = "inline-flex";
+        });
+        list.appendChild(div);
+      });
+    }
+    renderRecentReports();
 
     // ═══════════════════════════════════════════════════════════════════════════
     // GENERATE
