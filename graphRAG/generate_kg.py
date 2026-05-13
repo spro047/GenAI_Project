@@ -1104,13 +1104,86 @@ def query_graph_rag(query: str, nodes: list, links: list, history: list = None) 
             response = client.chat_completion(
                 messages=[{"role": "user", "content": prompt}],
                 model=HF_MODEL,
-                max_tokens=1000  # Increased for more detail
+                max_tokens=1000
             )
             return response.choices[0].message.content.strip()
         except Exception as e:
             print(f"GraphRAG HF call failed: {e}")
             
-    return "I found the facts in the graph, but I'm having trouble connecting to the AI to generate a response. Please check your API keys."
+    return "I found the facts in the graph, but I'm having trouble connecting to the AI to generate a response."
+
+def generate_graph_report(nodes: list, links: list, communities: int) -> str:
+    """Generates a professional AI analysis of the graph's structure and insights."""
+    
+    # 1. Identify influential nodes (top 5 by degree)
+    node_degrees = {n['id']: 0 for n in nodes}
+    for l in links:
+        s = l['source']['id'] if isinstance(l['source'], dict) else l['source']
+        t = l['target']['id'] if isinstance(l['target'], dict) else l['target']
+        if s in node_degrees: node_degrees[s] += 1
+        if t in node_degrees: node_degrees[t] += 1
+    
+    sorted_nodes = sorted(nodes, key=lambda n: node_degrees.get(n['id'], 0), reverse=True)
+    influential = sorted_nodes[:5]
+    
+    # 2. Format context for LLM
+    top_entities = "\n".join([f"- {n['label']} ({n['type']}): Central influence with {node_degrees.get(n['id'],0)} connections." for n in influential])
+    
+    # Summarize key relationships (limit for context)
+    top_links = links[:40]
+    relationships = []
+    for l in top_links:
+        s_id = l['source']['id'] if isinstance(l['source'], dict) else l['source']
+        t_id = l['target']['id'] if isinstance(l['target'], dict) else l['target']
+        s_label = next((n['label'] for n in nodes if n['id'] == s_id), "Unknown")
+        t_label = next((n['label'] for n in nodes if n['id'] == t_id), "Unknown")
+        relationships.append(f"{s_label} {l['label']} {t_label}")
+    
+    rel_str = "\n".join(relationships)
+
+    prompt = (
+        "You are a Senior Strategic Analyst. Your task is to write a high-level Professional Executive Summary based on the provided Knowledge Graph metrics.\n\n"
+        "--- GRAPH METRICS ---\n"
+        f"Total Entities: {len(nodes)}\n"
+        f"Total Relationships: {len(links)}\n"
+        f"Detected Communities: {communities}\n\n"
+        "TOP INFLUENTIAL ENTITIES:\n"
+        f"{top_entities}\n\n"
+        "KEY RELATIONSHIP SAMPLES:\n"
+        f"{rel_str}\n"
+        "--- END METRICS ---\n\n"
+        "REPORT REQUIREMENTS:\n"
+        "1. TITLE: Give the report a professional title based on the data.\n"
+        "2. EXECUTIVE OVERVIEW: A concise 2-3 sentence summary of the ecosystem.\n"
+        "3. STRUCTURAL ANALYSIS: Explain the significance of the Influential Entities and how they anchor the network.\n"
+        "4. COMMUNITY INSIGHTS: Analyze what the 'Communities' represent in this context (e.g., departmental silos, thematic clusters, etc.).\n"
+        "5. STRATEGIC RECOMMENDATIONS: Provide 2 actionable insights derived from these connections.\n\n"
+        "TONE: Formal, objective, and analytical. Use professional language.\n"
+        "FORMAT: Markdown (titles, bolding, lists)."
+    )
+
+    if USE_LOCAL_GGUF:
+        out = call_local_gguf(prompt)
+        if out: return out.strip()
+        
+    if USE_LOCAL_LLM:
+        out = call_local_llm(prompt)
+        if out: return out.strip()
+        
+    if HF_API and HF_MODEL:
+        try:
+            from huggingface_hub import InferenceClient
+            client = InferenceClient(token=HF_API)
+            response = client.chat_completion(
+                messages=[{"role": "user", "content": prompt}],
+                model=HF_MODEL,
+                max_tokens=1500
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            print(f"Report generation HF call failed: {e}")
+            
+    return "The report could not be generated at this time. Please ensure your LLM configuration is correct."
 
 
 def main():

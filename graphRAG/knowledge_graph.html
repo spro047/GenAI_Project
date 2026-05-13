@@ -1058,6 +1058,20 @@
         </div>
       </div>
 
+      <div class="sidebar-section" id="report-section" style="display: none;">
+        <div class="sidebar-label">Strategic Report</div>
+        <div class="input-wrap">
+          <button id="btn-generate-report" class="btn btn-secondary" style="width: 100%;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+            Generate AI Report
+          </button>
+          <button id="btn-export-pdf" class="btn btn-primary" style="width: 100%; display: none;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            Export as PDF
+          </button>
+        </div>
+      </div>
+
       <div class="sidebar-section" id="recents-section" style="display: none;">
         <div class="sidebar-label">Recent graphs</div>
         <div id="recents-list"></div>
@@ -1096,6 +1110,17 @@
           <div class="popup-close" id="popup-close">×</div>
         </div>
         <div class="popup-content" id="popup-content">Loading…</div>
+      </div>
+
+      <!-- Report Preview Modal -->
+      <div id="report-modal" id="node-popup" style="width: 600px; max-height: 80vh; overflow-y: auto;">
+        <div class="popup-header">
+          <div class="popup-title">Strategic Analysis Report</div>
+          <div class="popup-close" id="close-report">×</div>
+        </div>
+        <div class="popup-content" id="report-content" style="padding-top: 10px;">
+          Generate a report to see the analysis here.
+        </div>
       </div>
     </div>
 
@@ -1615,6 +1640,88 @@
         simulation.alpha(0.1).restart();
       }
     });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // STRATEGIC REPORT
+    // ═══════════════════════════════════════════════════════════════════════════
+    const btnGenerateReport = document.getElementById("btn-generate-report");
+    const btnExportPdf = document.getElementById("btn-export-pdf");
+    const reportModal = document.getElementById("report-modal");
+    const reportContent = document.getElementById("report-content");
+    const closeReport = document.getElementById("close-report");
+    let lastGeneratedReport = "";
+
+    btnGenerateReport.addEventListener("click", async () => {
+      btnGenerateReport.disabled = true;
+      btnGenerateReport.innerHTML = '<span class="spinner"></span> Analyzing…';
+      
+      try {
+        const response = await fetch("/generate_report", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            nodes: GRAPH_DATA.nodes,
+            links: GRAPH_DATA.links,
+            communities: GRAPH_DATA.communities
+          })
+        });
+        
+        if (!response.ok) throw new Error("Failed to generate report");
+        const data = await response.json();
+        
+        lastGeneratedReport = data.report;
+        reportContent.innerHTML = marked.parse(data.report);
+        reportModal.style.display = "flex";
+        requestAnimationFrame(() => reportModal.classList.add("open"));
+        btnExportPdf.style.display = "inline-flex";
+        
+      } catch (err) {
+        alert("Error generating report: " + err.message);
+      } finally {
+        btnGenerateReport.disabled = false;
+        btnGenerateReport.innerHTML = "Generate AI Report";
+      }
+    });
+
+    closeReport.addEventListener("click", () => {
+      reportModal.classList.remove("open");
+      setTimeout(() => reportModal.style.display = "none", 250);
+    });
+
+    btnExportPdf.addEventListener("click", async () => {
+      const response = await fetch("/export_pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          report_md: lastGeneratedReport,
+          title: "GraphRAG Strategic Insights Report"
+        })
+      });
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "Graph_Strategic_Report.pdf";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      } else {
+        alert("Failed to export PDF");
+      }
+    });
+
+    // Show report section only when graph exists
+    function toggleReportSection(show) {
+      document.getElementById("report-section").style.display = show ? "block" : "none";
+    }
+
+    const originalInitGraphReport = initGraph;
+    initGraph = function(data) {
+      originalInitGraphReport(data);
+      toggleReportSection(true);
+    };
 
     // ═══════════════════════════════════════════════════════════════════════════
     // GENERATE

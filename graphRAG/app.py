@@ -9,7 +9,9 @@ import os
 import json
 import argparse
 from flask import Flask, request, jsonify, send_from_directory
-from generate_kg import generate_graph_from_text, query_graph_rag, describe_node, index_text_in_vdb, delete_text_from_vdb
+from generate_kg import generate_graph_from_text, query_graph_rag, describe_node, index_text_in_vdb, delete_text_from_vdb, generate_graph_report
+from fpdf import FPDF
+import tempfile
 
 app = Flask(__name__, static_folder='.', static_url_path='')
 
@@ -104,6 +106,72 @@ def describe_node_route():
     text = data['text']
     desc = describe_node(entity, text)
     return jsonify({"description": desc})
+
+@app.route('/generate_report', methods=['POST'])
+def generate_report():
+    """
+    Generates a professional AI summary based on the current graph state.
+    Expected JSON: { "nodes": [...], "links": [...], "communities": N }
+    """
+    data = request.get_json()
+    if not data or 'nodes' not in data or 'links' not in data:
+        return jsonify({"error": "Missing required fields"}), 400
+    
+    nodes = data['nodes']
+    links = data['links']
+    communities = data.get('communities', 0)
+    
+    report = generate_graph_report(nodes, links, communities)
+    return jsonify({"report": report})
+
+@app.route('/export_pdf', methods=['POST'])
+def export_pdf():
+    """
+    Exports the generated report as a PDF.
+    Expected JSON: { "report_md": "Markdown content", "title": "Title" }
+    """
+    data = request.get_json()
+    if not data or 'report_md' not in data:
+        return jsonify({"error": "Missing report content"}), 400
+    
+    report_text = data['report_md']
+    title = data.get('title', 'Knowledge Graph Strategic Report')
+    
+    try:
+        # Create PDF
+        pdf = FPDF()
+        pdf.add_page()
+        
+        # Header
+        pdf.set_font("Arial", 'B', 16)
+        pdf.cell(0, 10, title, 0, 1, 'C')
+        pdf.ln(5)
+        
+        # Date
+        pdf.set_font("Arial", 'I', 10)
+        from datetime import datetime
+        pdf.cell(0, 10, f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", 0, 1, 'R')
+        pdf.ln(10)
+        
+        # Body (clean markdown roughly)
+        pdf.set_font("Arial", size=11)
+        # Simple cleanup of markdown formatting for plain PDF
+        clean_text = report_text.replace('**', '').replace('###', '').replace('##', '').replace('#', '')
+        
+        pdf.multi_cell(0, 7, clean_text)
+        
+        # Save to temp file
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
+            pdf.output(tmp.name)
+            tmp_path = tmp.name
+            
+        directory = os.path.dirname(tmp_path)
+        filename = os.path.basename(tmp_path)
+        
+        return send_from_directory(directory, filename, as_attachment=True, download_name="Knowledge_Graph_Report.pdf")
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8000))
