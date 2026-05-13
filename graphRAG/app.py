@@ -143,20 +143,20 @@ def export_pdf():
         pdf.add_page()
         
         # Header
-        pdf.set_font("Arial", 'B', 16)
-        pdf.cell(0, 10, title, 0, 1, 'C')
+        pdf.set_font("Helvetica", 'B', 16)
+        pdf.cell(0, 10, title, align='C', new_x="LMARGIN", new_y="NEXT")
         pdf.ln(5)
         
         # Date
-        pdf.set_font("Arial", 'I', 10)
+        pdf.set_font("Helvetica", 'I', 10)
         from datetime import datetime
-        pdf.cell(0, 10, f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", 0, 1, 'R')
+        pdf.cell(0, 10, f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", align='R', new_x="LMARGIN", new_y="NEXT")
         pdf.ln(10)
         
         # Body (clean markdown roughly)
-        pdf.set_font("Arial", size=11)
+        pdf.set_font("Helvetica", size=11)
         # Simple cleanup of markdown formatting for plain PDF
-        clean_text = report_text.replace('**', '').replace('###', '').replace('##', '').replace('#', '')
+        clean_text = report_text.replace('**', '').replace('###', '').replace('##', '').replace('#', '').replace('*', '-')
         
         pdf.multi_cell(0, 7, clean_text)
         
