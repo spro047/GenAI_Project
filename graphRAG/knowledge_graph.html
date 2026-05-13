@@ -115,7 +115,81 @@
     ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: var(--text-soft); }
 
-    /* ── Header ─────────────────────────────────────────────── */
+    /* ── Tabs Bar ────────────────────────────────────────────── */
+    .tabs-bar {
+      background: var(--surface-alt);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      height: 44px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      flex-shrink: 0;
+      z-index: 50;
+      transition: background 0.4s var(--ease), border-color 0.4s var(--ease);
+    }
+    .tabs-bar::-webkit-scrollbar { display: none; }
+    
+    .tabs-list {
+      display: flex;
+      gap: 4px;
+      height: 100%;
+      align-items: flex-end;
+    }
+    
+    .tab {
+      background: var(--surface-alt);
+      padding: 0 16px;
+      height: 34px;
+      border-radius: 8px 8px 0 0;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      white-space: nowrap;
+      max-width: 180px;
+      border: 1px solid transparent;
+      border-bottom: none;
+      transition: all 0.2s var(--ease);
+      user-select: none;
+      position: relative;
+    }
+    .tab:hover {
+      background: var(--surface);
+      color: var(--text);
+    }
+    .tab.active {
+      background: var(--bg);
+      color: var(--accent);
+      border-color: var(--border);
+      border-bottom: 1px solid var(--bg);
+      margin-bottom: -1px;
+      height: 35px;
+      z-index: 2;
+    }
+    .tab-close {
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      opacity: 0;
+      transition: all 0.2s;
+    }
+    .tab:hover .tab-close { opacity: 0.5; }
+    .tab-close:hover {
+      opacity: 1 !important;
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    /* ── Tooltip ─────────────────────────────────────────────── */
     header {
       padding: 18px 28px;
       border-bottom: 1px solid var(--border);
@@ -1008,6 +1082,21 @@
   <div class="layout">
 
     <aside class="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-label">Workspace / Research Projects</div>
+        <div class="input-wrap">
+          <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+            <select id="project-selector" class="btn btn-secondary" style="flex: 1; text-align: left; font-size: 13px;">
+              <option value="">PERSONAL</option>
+            </select>
+            <button id="btn-new-project" class="btn btn-secondary" title="New Project" style="padding: 0 10px;">+</button>
+          </div>
+          <button id="btn-merge-workspace" class="btn btn-primary" style="width: 100%; display: none;">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;"><path d="M12 22V12m0 0l-4 4m4-4l4 4M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            Merge Workspace
+          </button>
+        </div>
+      </div>
 
       <div class="sidebar-section">
         <div class="sidebar-label">Input</div>
@@ -1085,6 +1174,10 @@
     </aside>
 
     <div id="graph-container">
+      <div id="tabs-bar" class="tabs-bar" style="display: none;">
+        <div id="tabs-list" class="tabs-list"></div>
+      </div>
+
       <div id="empty-state" class="empty-state">
         <div class="empty-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -1788,9 +1881,85 @@
     renderRecentReports();
 
     // ═══════════════════════════════════════════════════════════════════════════
+    // WORKSPACE / PROJECTS
+    // ═══════════════════════════════════════════════════════════════════════════
+    const projectSelector = document.getElementById("project-selector");
+    const btnNewProject = document.getElementById("btn-new-project");
+    const btnMergeWorkspace = document.getElementById("btn-merge-workspace");
+    const generateBtn = document.getElementById("generate-btn");
+    
+    async function loadProjects() {
+      const resp = await fetch("/projects");
+      const projects = await resp.json();
+      projectSelector.innerHTML = '<option value="">(Personal Space)</option>';
+      projects.forEach(p => {
+        const opt = document.createElement("option");
+        opt.value = p.id;
+        opt.textContent = p.name;
+        projectSelector.appendChild(opt);
+      });
+    }
+
+    btnNewProject.addEventListener("click", async () => {
+      const name = prompt("Enter project name:");
+      if (!name) return;
+      
+      const resp = await fetch("/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name })
+      });
+      const data = await resp.json();
+      await loadProjects();
+      projectSelector.value = data.id;
+      updateWorkspaceUI();
+    });
+
+    projectSelector.addEventListener("change", updateWorkspaceUI);
+
+    function updateWorkspaceUI() {
+      const pid = projectSelector.value;
+      if (pid) {
+        generateBtn.textContent = "Ingest to Project";
+        btnMergeWorkspace.style.display = "flex";
+      } else {
+        generateBtn.textContent = "Generate Graph";
+        btnMergeWorkspace.style.display = "none";
+      }
+    }
+
+    btnMergeWorkspace.addEventListener("click", async () => {
+      const pid = projectSelector.value;
+      if (!pid) return;
+      
+      btnMergeWorkspace.disabled = true;
+      btnMergeWorkspace.innerHTML = '<span class="spinner"></span> Merging…';
+      
+      try {
+        const resp = await fetch("/merge_workspace", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ project_id: pid })
+        });
+        if (!resp.ok) throw new Error("Failed to merge graphs");
+        const data = await resp.json();
+        initGraph(data, "UNIFIED");
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        btnMergeWorkspace.disabled = false;
+        btnMergeWorkspace.innerHTML = `
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;"><path d="M12 22V12m0 0l-4 4m4-4l4 4M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          Merge Workspace
+        `;
+      }
+    });
+
+    loadProjects();
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // GENERATE
     // ═══════════════════════════════════════════════════════════════════════════
-    const generateBtn = document.getElementById("generate-btn");
     const inputText = document.getElementById("input-text");
     const fileUpload = document.getElementById("file-upload");
     const errorMsg = document.getElementById("error-msg");
@@ -1821,13 +1990,17 @@
       errorMsg.classList.remove("visible");
 
       generateBtn.disabled = true;
-      generateBtn.innerHTML = '<span class="spinner"></span> Generating…';
+      generateBtn.innerHTML = '<span class="spinner"></span> Working…';
 
       try {
-        const response = await fetch("/generate", {
+        const projectId = projectSelector.value;
+        const endpoint = projectId ? "/ingest" : "/generate";
+        const body = projectId ? { project_id: projectId, text, filename: "Document_" + Date.now() + ".txt" } : { text };
+        
+        const response = await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text })
+          body: JSON.stringify(body)
         });
         if (!response.ok) {
           const errorData = await response.json();
@@ -1840,7 +2013,7 @@
         document.getElementById("stat-method").textContent = data.extraction_method || "—";
         document.getElementById("stat-search").textContent = data.search_augmented ? "yes" : "no";
         saveToRecents(text, data);
-        initGraph(data);
+        initGraph(data, data.title || "New Extraction");
       } catch (err) {
         errorMsg.textContent = err.message || "An error occurred.";
         errorMsg.classList.add("visible");
@@ -1855,7 +2028,7 @@
     // ═══════════════════════════════════════════════════════════════════════════
     function saveToRecents(text, data) {
       let recents = JSON.parse(localStorage.getItem('recentGraphs') || '[]');
-      const title = text.length > 30 ? text.substring(0, 30) + "…" : text;
+      const title = data.title || (text.length > 30 ? text.substring(0, 30) + "…" : text);
       recents = recents.filter(item => item.text !== text);
       const newItem = {
         id: Date.now().toString(),
@@ -1905,7 +2078,7 @@
           inputText.value = item.text;
           document.getElementById("stat-method").textContent = item.data.extraction_method || "—";
           document.getElementById("stat-search").textContent = item.data.search_augmented ? "yes" : "no";
-          initGraph(item.data);
+          initGraph(item.data, item.title || "Recent Graph");
           saveToRecents(item.text, item.data);
         });
         recentsList.appendChild(div);
@@ -2060,6 +2233,85 @@
 
     sendChat.addEventListener('click', handleChat);
     chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleChat(); });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // TABS MANAGEMENT
+    // ═══════════════════════════════════════════════════════════════════════════
+    let OPEN_TABS = [];
+    let ACTIVE_TAB_ID = null;
+    const tabsBar = document.getElementById("tabs-bar");
+    const tabsList = document.getElementById("tabs-list");
+
+    function addTab(data, title) {
+      // Check if this graph data is already open
+      const existing = OPEN_TABS.find(t => t.data.nodes.length === data.nodes.length && 
+                                           t.data.nodes[0]?.label === data.nodes[0]?.label);
+      if (existing) {
+        switchTab(existing.id);
+        return;
+      }
+
+      const id = Date.now().toString();
+      const newTab = { id, title, data };
+      OPEN_TABS.push(newTab);
+      renderTabs();
+      switchTab(id);
+    }
+
+    function switchTab(id) {
+      ACTIVE_TAB_ID = id;
+      const tab = OPEN_TABS.find(t => t.id === id);
+      if (tab) {
+        // Use the full chain (Report toggle + Original render)
+        originalInitGraphWithTabs(tab.data);
+        renderTabs();
+      }
+    }
+
+    function closeTab(id, e) {
+      if (e) e.stopPropagation();
+      const index = OPEN_TABS.findIndex(t => t.id === id);
+      if (index === -1) return;
+      
+      OPEN_TABS.splice(index, 1);
+      if (OPEN_TABS.length === 0) {
+        ACTIVE_TAB_ID = null;
+        tabsBar.style.display = "none";
+        emptyState.style.display = "flex";
+        document.getElementById("graph").style.display = "none";
+      } else if (ACTIVE_TAB_ID === id) {
+        switchTab(OPEN_TABS[Math.max(0, index - 1)].id);
+      } else {
+        renderTabs();
+      }
+    }
+
+    function renderTabs() {
+      if (OPEN_TABS.length === 0) {
+        tabsBar.style.display = "none";
+        return;
+      }
+      tabsBar.style.display = "flex";
+      tabsList.innerHTML = "";
+      
+      OPEN_TABS.forEach(tab => {
+        const tabEl = document.createElement("div");
+        tabEl.className = `tab ${tab.id === ACTIVE_TAB_ID ? 'active' : ''}`;
+        tabEl.innerHTML = `
+          <span class="tab-title">${tab.title}</span>
+          <span class="tab-close">×</span>
+        `;
+        tabEl.addEventListener("click", () => switchTab(tab.id));
+        tabEl.querySelector(".tab-close").addEventListener("click", (e) => closeTab(tab.id, e));
+        tabsList.appendChild(tabEl);
+      });
+    }
+
+    // Wrap initGraph to add tabs instead of just rendering
+    const originalInitGraphWithTabs = initGraph;
+    initGraph = function(data, title = "New Graph") {
+      addTab(data, title);
+    };
 
   </script>
 </body>

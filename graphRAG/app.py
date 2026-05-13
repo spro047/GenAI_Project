@@ -9,7 +9,16 @@ import os
 import json
 import argparse
 from flask import Flask, request, jsonify, send_from_directory
-from generate_kg import generate_graph_from_text, query_graph_rag, describe_node, index_text_in_vdb, delete_text_from_vdb, generate_graph_report
+from generate_kg import (
+    generate_graph_from_text, 
+    query_graph_rag, 
+    describe_node, 
+    index_text_in_vdb, 
+    delete_text_from_vdb, 
+    generate_graph_report,
+    merge_graphs
+)
+import database
 from fpdf import FPDF
 import tempfile
 
@@ -170,6 +179,74 @@ def export_pdf():
         
         return send_from_directory(directory, filename, as_attachment=True, download_name="Knowledge_Graph_Report.pdf")
         
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ═══════════════════════════════════════════════════════════════════════════
+# WORKSPACE / PROJECT ENDPOINTS
+# ═══════════════════════════════════════════════════════════════════════════
+
+@app.route('/projects', methods=['GET', 'POST'])
+def handle_projects():
+    if request.method == 'POST':
+        data = request.get_json()
+        name = data.get('name', 'New Project')
+        p_id = database.create_project(name)
+        return jsonify({"id": p_id, "name": name})
+    else:
+        return jsonify(database.list_projects())
+
+@app.route('/projects/<int:project_id>', methods=['DELETE'])
+def delete_project_route(project_id):
+    database.delete_project(project_id)
+    return jsonify({"status": "success"})
+
+@app.route('/ingest', methods=['POST'])
+def ingest_document():
+    """
+    Ingests a document into a project and generates its individual graph.
+    """
+    data = request.get_json()
+    project_id = data.get('project_id')
+    text = data.get('text', '').strip()
+    filename = data.get('filename', 'document.txt')
+    
+    if not project_id or not text:
+        return jsonify({"error": "Missing project_id or text"}), 400
+    
+    try:
+        # 1. Generate Graph
+        result = generate_graph_from_text(text)
+        
+        # 2. Save to Workspace DB
+        doc_id = database.add_document(project_id, filename, text)
+        database.save_graph(project_id, doc_id, result)
+        
+        # 3. Index in VDB for RAG
+        index_text_in_vdb(text)
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/merge_workspace', methods=['POST'])
+def merge_workspace():
+    """
+    Merges all graphs within a project into one unified visualization.
+    """
+    data = request.get_json()
+    project_id = data.get('project_id')
+    
+    if not project_id:
+        return jsonify({"error": "Missing project_id"}), 400
+        
+    try:
+        graphs = database.get_project_graphs(project_id)
+        if not graphs:
+            return jsonify({"error": "No graphs found in this project"}), 404
+            
+        merged = merge_graphs(graphs)
+        return jsonify(merged)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

@@ -838,13 +838,44 @@ def generate_graph_from_text(text: str) -> dict:
     # Add communities (simple clustering based on connected components)
     communities = compute_communities(graph['nodes'], graph['edges'])
     
+    # Generate a descriptive title for the graph/tab
+    graph_title = generate_graph_title(text)
+
     return {
         "nodes": graph['nodes'],
         "links": graph['edges'],
         "communities": communities,
         "extraction_method": extraction_method,
-        "search_augmented": search_augmented
+        "search_augmented": search_augmented,
+        "title": graph_title
     }
+
+def generate_graph_title(text: str) -> str:
+    """Generates a single-word descriptive title for the knowledge graph based on the input text."""
+    prompt = f"Provide a single-word title (one word only) that summarizes the main topic or story of the text below. Return ONLY the single word. No punctuation, no brackets, no quotes.\n\nText: {text[:500]}"
+    
+    try:
+        import re
+        out = ""
+        if USE_LOCAL_GGUF:
+            out = call_local_gguf(prompt)
+        elif USE_LOCAL_LLM:
+            out = call_local_llm(prompt)
+        elif HF_API and HF_MODEL:
+            out = call_hf_inference(prompt, HF_MODEL, HF_API)
+        
+        # Take the first line, split into words, take the first word
+        first_line = out.strip().split('\n')[0]
+        word = first_line.split()[0] if first_line.split() else ""
+        # Remove all special characters to keep it clean
+        clean_word = re.sub(r'[^a-zA-Z0-9]', '', word)
+        
+        if clean_word:
+            return clean_word.upper()[:12]
+    except Exception as e:
+        print(f"Title generation failed: {e}")
+    
+    return "GRAPH"
 
 def describe_node(entity: str, context_text: str) -> str:
     """Uses LLM to generate a short description of the entity based on the context."""
@@ -1185,6 +1216,72 @@ def generate_graph_report(nodes: list, links: list, communities: int) -> str:
             
     return "The report could not be generated at this time. Please ensure your LLM configuration is correct."
 
+
+def merge_graphs(graph_list: list) -> dict:
+    """Merges multiple graph objects into a single unified graph, resolving duplicates."""
+    if not graph_list:
+        return {"nodes": [], "links": [], "communities": 0}
+    
+    merged_nodes = {}
+    merged_links = []
+    
+    # Track link duplicates using a tuple key
+    seen_links = set()
+    
+    for graph in graph_list:
+        nodes = graph.get('nodes', [])
+        links = graph.get('links', [])
+        
+        # Local mapping of old IDs to new labels for link resolution
+        id_to_label = {n['id']: n['label'] for n in nodes}
+        
+        for n in nodes:
+            label = n['label']
+            if label not in merged_nodes:
+                # Add new node
+                merged_nodes[label] = {
+                    "id": len(merged_nodes) + 1,
+                    "label": label,
+                    "type": n['type'],
+                    "description": n.get('description', ''),
+                    "aliases": n.get('aliases', [])
+                }
+            else:
+                # Merge descriptions or aliases if they differ
+                if n.get('description') and n['description'] not in merged_nodes[label]['description']:
+                    merged_nodes[label]['description'] += " | " + n['description']
+                
+                for alias in n.get('aliases', []):
+                    if alias not in merged_nodes[label]['aliases']:
+                        merged_nodes[label]['aliases'].append(alias)
+        
+        for l in links:
+            s_id = l['source']['id'] if isinstance(l['source'], dict) else l['source']
+            t_id = l['target']['id'] if isinstance(l['target'], dict) else l['target']
+            
+            s_label = id_to_label.get(s_id, "Unknown")
+            t_label = id_to_label.get(t_id, "Unknown")
+            
+            link_key = (s_label, l['label'], t_label)
+            if link_key not in seen_links:
+                merged_links.append({
+                    "source": merged_nodes[s_label]['id'],
+                    "target": merged_nodes[t_label]['id'],
+                    "label": l['label'],
+                    "description": l.get('description', '')
+                })
+                seen_links.add(link_key)
+
+    # Recalculate communities for the unified graph
+    nodes_list = list(merged_nodes.values())
+    communities = compute_communities(nodes_list, merged_links)
+    
+    return {
+        "nodes": nodes_list,
+        "links": merged_links,
+        "communities": communities,
+        "extraction_method": "Merged Workspace Graph"
+    }
 
 def main():
     parser = argparse.ArgumentParser(description="Generate a simple KG from text using Hugging Face models")
