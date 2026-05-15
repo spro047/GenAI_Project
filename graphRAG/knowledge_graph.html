@@ -399,20 +399,26 @@
       text-overflow: ellipsis;
       flex: 1;
     }
-    .recent-delete {
+    .recent-delete, .recent-download {
       background: none;
       border: none;
       color: var(--text-soft);
       cursor: pointer;
       font-size: 16px;
       line-height: 1;
-      padding: 2px 5px;
+      padding: 4px;
       opacity: 0;
       border-radius: 4px;
       transition: all 0.2s var(--ease);
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-    .recent-item:hover .recent-delete { opacity: 1; }
+    .recent-item:hover .recent-delete, 
+    .recent-item:hover .recent-download { opacity: 1; }
     .recent-delete:hover { color: var(--danger); background: var(--accent-soft); }
+    .recent-download:hover { color: var(--accent); background: var(--accent-soft); }
+    .recent-download svg { width: 14px; height: 14px; }
     .recent-meta {
       font-size: 11px;
       color: var(--text-soft);
@@ -1694,33 +1700,45 @@
       }
     });
 
+    async function exportReportAsPdf(reportText, title) {
+      if (!reportText) return;
+      try {
+        const response = await fetch("/export_pdf", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            report_md: reportText,
+            title: title || "GraphRAG Strategic Insights Report"
+          })
+        });
+        
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          const fileName = (title || "Graph_Report").replace(/[^a-z0-9]/gi, '_').toLowerCase();
+          a.download = `${fileName}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          window.URL.revokeObjectURL(url);
+        } else {
+          const errData = await response.json().catch(() => ({}));
+          alert("Failed to export PDF: " + (errData.error || "Server error"));
+        }
+      } catch (err) {
+        alert("Error exporting PDF: " + err.message);
+      }
+    }
+
     closeReport.addEventListener("click", () => {
       reportModal.classList.remove("open");
       setTimeout(() => reportModal.style.display = "none", 250);
     });
 
-    btnExportPdf.addEventListener("click", async () => {
-      const response = await fetch("/export_pdf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          report_md: lastGeneratedReport,
-          title: "GraphRAG Strategic Insights Report"
-        })
-      });
-      
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "Graph_Strategic_Report.pdf";
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-      } else {
-        alert("Failed to export PDF");
-      }
+    btnExportPdf.addEventListener("click", () => {
+      exportReportAsPdf(lastGeneratedReport, "GraphRAG Strategic Insights Report");
     });
 
     // Show report section only when graph exists
@@ -1765,10 +1783,19 @@
         div.innerHTML = `
           <div class="recent-header">
             <div class="recent-title">${item.title}</div>
-            <button class="recent-delete" title="Delete">×</button>
+            <div style="display:flex; gap:4px;">
+              <button class="recent-download" title="Download PDF">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              </button>
+              <button class="recent-delete" title="Delete">×</button>
+            </div>
           </div>
           <div class="recent-meta">${item.date}</div>
         `;
+        div.querySelector('.recent-download').addEventListener('click', (e) => {
+          e.stopPropagation();
+          exportReportAsPdf(item.report, item.title);
+        });
         div.querySelector('.recent-delete').addEventListener('click', (e) => {
           e.stopPropagation();
           recents.splice(index, 1);

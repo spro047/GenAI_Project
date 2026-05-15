@@ -156,21 +156,31 @@ def export_pdf():
         # Body (clean markdown roughly)
         pdf.set_font("Helvetica", size=11)
         # Simple cleanup of markdown formatting for plain PDF
+        # Also sanitize for Latin-1 encoding (standard for core fonts)
         clean_text = report_text.replace('**', '').replace('###', '').replace('##', '').replace('#', '').replace('*', '-')
+        # Encode to latin-1 and back to ignore non-mappable characters (like smart quotes)
+        clean_text = clean_text.encode('latin-1', 'replace').decode('latin-1')
         
         pdf.multi_cell(0, 7, clean_text)
         
         # Save to temp file
+        # On Windows, we must close the file before FPDF can write to it
         with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
-            pdf.output(tmp.name)
             tmp_path = tmp.name
             
-        directory = os.path.dirname(tmp_path)
-        filename = os.path.basename(tmp_path)
-        
-        return send_from_directory(directory, filename, as_attachment=True, download_name="Knowledge_Graph_Report.pdf")
+        try:
+            pdf.output(tmp_path)
+            directory = os.path.dirname(tmp_path)
+            filename = os.path.basename(tmp_path)
+            return send_from_directory(directory, filename, as_attachment=True, download_name="Knowledge_Graph_Report.pdf")
+        finally:
+            # We don't delete here because send_from_directory needs the file.
+            # In a real app, you'd use a background task or a more robust cleanup.
+            pass
         
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':

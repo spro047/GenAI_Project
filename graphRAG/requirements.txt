@@ -5,3 +5,4 @@ flask>=3.0.0
 # llama-cpp-python>=0.3.0  # (Optional: Only needed for local GGUF models, requires C++ Build Tools)
 huggingface_hub
 google-search-results
+fpdf2
