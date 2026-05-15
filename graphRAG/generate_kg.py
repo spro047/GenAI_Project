@@ -955,9 +955,6 @@ def drill_down_node(entity_name: str) -> dict:
         "nodes": graph["nodes"],
         "links": graph["edges"]
     }
-            pass
-            
-    return "Description could not be generated. Please check your LLM configuration."
 
 def compute_communities(nodes, edges):
     """Simple community detection based on connected components."""
