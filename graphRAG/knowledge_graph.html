@@ -32,7 +32,7 @@
       --danger:       #B54343;
       --graph-bg:     #FAF9F5;
       --graph-dot:    #E8E6DC;
-      --link-stroke:  #C9C6B8;
+      --link-stroke:  #000000;
       --shadow-sm:    0 1px 2px rgba(26,26,25,0.04);
       --shadow-md:    0 4px 16px rgba(26,26,25,0.06);
       --shadow-lg:    0 12px 40px rgba(26,26,25,0.10);
@@ -71,7 +71,7 @@
       --danger:       #D67A7A;
       --graph-bg:     #1F1E1B;
       --graph-dot:    #2E2D29;
-      --link-stroke:  #45433D;
+      --link-stroke:  #FFFFFF;
       --shadow-sm:    0 1px 2px rgba(0,0,0,0.2);
       --shadow-md:    0 4px 16px rgba(0,0,0,0.3);
       --shadow-lg:    0 12px 40px rgba(0,0,0,0.5);
@@ -559,12 +559,14 @@
 
     .link {
       stroke: var(--link-stroke);
-      stroke-opacity: 0.7;
-      stroke-width: 1.4px;
+      stroke-opacity: 0.4;
+      fill: none;
       transition: stroke-opacity 0.3s var(--ease);
+      stroke-width: 1.2px;
     }
     .link.highlighted { stroke: var(--accent); stroke-opacity: 1; stroke-width: 2px; }
-    .link.dimmed { stroke-opacity: 0.12; }
+    .link.dimmed { stroke-opacity: 0.05; }
+    .node:hover ~ .links .link, .node:hover .link { stroke-opacity: 0.8; }
 
     .edge-label-bg {
       fill: var(--surface);
@@ -574,25 +576,26 @@
       rx: 4; ry: 4;
     }
     .edge-label {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 9px;
-      font-weight: 500;
-      fill: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 10px;
+      font-weight: 600;
+      fill: var(--text-soft);
       text-anchor: middle;
       pointer-events: auto;
-      text-transform: lowercase;
-      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
     }
 
     .node circle {
-      stroke: var(--bg);
+      stroke: var(--surface);
       stroke-width: 2.5px;
-      transition: stroke-width 0.2s var(--ease), filter 0.2s var(--ease);
-      cursor: pointer;
+      transition: transform 0.3s var(--ease), filter 0.3s var(--ease);
+      cursor: grab;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.15));
     }
     .node:hover circle {
-      stroke-width: 4px;
-      filter: drop-shadow(0 4px 12px rgba(204,120,92,0.25));
+      transform: scale(1.1);
+      filter: drop-shadow(0 4px 12px rgba(0,0,0,0.25));
     }
     .node.selected circle {
       stroke: var(--accent);
@@ -1413,22 +1416,24 @@
       });
 
       const maxDeg = Math.max(...nodes.map(n => n.degree), 1);
-      const minDeg = Math.min(...nodes.map(n => n.degree), 1);
+      const minDeg = Math.min(...nodes.map(n => n.degree), 0);
       const nodeRadius = d => {
         const t = (d.degree - minDeg) / (maxDeg - minDeg || 1);
-        return 9 + t * 22;
+        return 12 + t * 28; // Increased base size
       };
 
       if (simulation) simulation.stop();
 
-      const linkDist = +document.getElementById("link-distance").value || 400;
-      const chargeSt = +document.getElementById("charge").value || -1500;
+      const linkDist = +document.getElementById("link-distance").value || 300;
+      const chargeSt = (+document.getElementById("charge").value || -2000) * 1.8;
 
       simulation = d3.forceSimulation(nodes)
-        .force("link", d3.forceLink(links).id(d => d.id).distance(linkDist))
+        .force("link", d3.forceLink(links).id(d => d.id).distance(d => linkDist * (1 + 1/Math.sqrt(d.source.degree || 1))))
         .force("charge", d3.forceManyBody().strength(chargeSt))
         .force("center", d3.forceCenter(W / 2, H / 2))
-        .force("collision", d3.forceCollide().radius(d => nodeRadius(d) + 20))
+        .force("x", d3.forceX(W / 2).strength(0.04))
+        .force("y", d3.forceY(H / 2).strength(0.04))
+        .force("collision", d3.forceCollide().radius(d => nodeRadius(d) + 45))
         .on("tick", updateGraphLayout);
 
       root.selectAll("*").remove();

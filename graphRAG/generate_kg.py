@@ -423,11 +423,15 @@ def triples_to_graph(triples, text=""):
         if o_alias != o and o_alias not in nodes[o]["aliases"]:
             nodes[o]["aliases"].append(o_alias)
         
-        # Deduplicate exactly identical relationships before adding
+        # Deduplicate relationships between same pair of nodes
         s_id = nodes[s]["id"]
         o_id = nodes[o]["id"]
         
-        is_dup = any(e for e in edges if e["source"] == s_id and e["target"] == o_id and e["label"] == str(p_raw))
+        # Check for existing edge in either direction with same or similar label
+        is_dup = any(e for e in edges if 
+            ((e["source"] == s_id and e["target"] == o_id) or (e["source"] == o_id and e["target"] == s_id)) and
+            (e["label"].upper() == p.upper())
+        )
         if is_dup:
             continue
             
