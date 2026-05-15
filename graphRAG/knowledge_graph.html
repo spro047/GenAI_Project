@@ -213,6 +213,7 @@
     /* ── Sidebar ─────────────────────────────────────────────── */
     .sidebar {
       width: 340px;
+      min-width: 280px;
       background: var(--bg);
       border-right: 1px solid var(--border);
       display: flex;
@@ -220,6 +221,7 @@
       flex-shrink: 0;
       overflow-y: auto;
       transition: border-color 0.4s var(--ease), background 0.4s var(--ease);
+      position: relative;
     }
 
     .sidebar-section {
@@ -294,6 +296,20 @@
     #file-upload::file-selector-button:hover {
       background: var(--accent);
       color: var(--accent-ink);
+    }
+
+    /* ── Resizer ────────────────────────────────────────────── */
+    .sidebar-resizer {
+      width: 6px;
+      cursor: col-resize;
+      background: transparent;
+      margin-left: -3px;
+      z-index: 100;
+      transition: background 0.2s var(--ease);
+    }
+    .sidebar-resizer:hover, .sidebar-resizer.dragging {
+      background: var(--accent-soft);
+      border-left: 2px solid var(--accent);
     }
 
     /* ── Buttons ─────────────────────────────────────────────── */
@@ -1128,7 +1144,7 @@
 
   <div class="layout">
 
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
  
        <div class="sidebar-section">
          <div class="sidebar-label">Manual Editor</div>
@@ -1218,6 +1234,7 @@
       </div>
 
     </aside>
+    <div class="sidebar-resizer" id="sidebar-resizer"></div>
 
     <div id="graph-container">
       <div id="empty-state" class="empty-state">
@@ -1245,6 +1262,15 @@
       <div id="tooltip"></div>
  
        <div id="context-menu" class="context-menu">
+         <div class="menu-item" id="menu-show-desc">
+           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+           Show Description
+         </div>
+         <div class="menu-item" id="menu-drill-down">
+           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
+           Drill Down
+         </div>
+         <div class="menu-divider" id="menu-divider-analysis"></div>
          <div class="menu-item" id="menu-add-node">
            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
            Add New Node
@@ -1257,7 +1283,7 @@
            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
            Delete Entity
          </div>
-         <div class="menu-divider"></div>
+         <div class="menu-divider" id="menu-divider-editor"></div>
          <div class="menu-item danger" id="menu-delete-link">
            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
            Delete Relationship
@@ -1488,11 +1514,7 @@
             d3.select(e.sourceEvent.target).style("cursor", "grab");
             dragEnd(e, d);
           })
-        )
-        .on("dblclick", (e, d) => {
-          e.stopPropagation();
-          handleDrillDown(d);
-        });
+        );
 
       node.append("circle")
         .attr("r", d => nodeRadius(d))
@@ -1707,30 +1729,25 @@
       .on("mouseleave", () => tooltip.classList.remove("visible"))
       .on("click", (e, d) => {
         e.stopPropagation();
-        if (selectedNode === d.id) {
-          clearSelection();
-        } else {
-          selectNode(d);
-          popupTitle.textContent = d.label;
-          popupContent.textContent = "Loading description…";
-          nodePopup.style.display = "flex";
-          requestAnimationFrame(() => nodePopup.classList.add('open'));
-
-          const inputTextValue = document.getElementById("input-text").value;
-          fetch("/describe_node", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ entity: d.label, text: inputTextValue })
-          })
-          .then(res => res.json())
-          .then(data => {
-            popupContent.textContent = data.description || "Could not fetch description.";
-          })
-          .catch(() => { popupContent.textContent = "Error fetching description."; });
-        }
+        selectNode(d);
+        rightClickTarget = { type: 'node', data: d };
+        showContextMenu(e.clientX, e.clientY, 'node', 'click');
+      })
+      .on("contextmenu", (e, d) => {
+        if (!editorMode) return;
+        e.preventDefault();
+        e.stopPropagation();
+        rightClickTarget = { type: 'node', data: d };
+        showContextMenu(e.clientX, e.clientY, 'node', 'contextmenu');
       });
 
-      svg.on("click", clearSelection);
+      svg.on("click", (e) => {
+        const target = e.target;
+        if (target.tagName.toLowerCase() === 'svg' || target.id === 'graph' || target.id === 'graph-container') {
+          clearSelection();
+          hideContextMenu();
+        }
+      });
 
       function positionTooltip(e) {
         const rect = container.getBoundingClientRect();
@@ -2292,28 +2309,52 @@
       if (d3Target.datum() && d3Target.datum().label !== undefined) {
         // Clicked a node (or node text)
         rightClickTarget = { type: 'node', data: d3Target.datum() };
-        showContextMenu(e.clientX, e.clientY, 'node');
+        showContextMenu(e.clientX, e.clientY, 'node', 'contextmenu');
       } else if (d3Target.classed('link') || d3Target.classed('edge-label') || d3Target.classed('edge-label-bg')) {
         // Clicked a link
         rightClickTarget = { type: 'link', data: d3Target.datum() };
-        showContextMenu(e.clientX, e.clientY, 'link');
+        showContextMenu(e.clientX, e.clientY, 'link', 'contextmenu');
       } else {
         // Clicked canvas
         rightClickTarget = { type: 'canvas', x: e.offsetX, y: e.offsetY };
-        showContextMenu(e.clientX, e.clientY, 'canvas');
+        showContextMenu(e.clientX, e.clientY, 'canvas', 'contextmenu');
       }
     });
 
-    function showContextMenu(x, y, type) {
+    function showContextMenu(x, y, targetType, triggerType) {
       contextMenu.style.display = 'flex';
       contextMenu.style.left = x + 'px';
       contextMenu.style.top = y + 'px';
       
-      // Toggle visibility based on target type
-      document.getElementById('menu-add-node').style.display = (type === 'canvas') ? 'flex' : 'none';
-      document.getElementById('menu-rename-node').style.display = (type === 'node') ? 'flex' : 'none';
-      document.getElementById('menu-delete-node').style.display = (type === 'node') ? 'flex' : 'none';
-      document.getElementById('menu-delete-link').style.display = (type === 'link') ? 'flex' : 'none';
+      const isEditor = editorMode;
+      const isNode = targetType === 'node';
+      const isLink = targetType === 'link';
+      const isCanvas = targetType === 'canvas';
+
+      // Visibility logic
+      // Analysis options (Show Desc, Drill Down) - only on nodes, either click or contextmenu
+      document.getElementById('menu-show-desc').style.display = isNode ? 'flex' : 'none';
+      document.getElementById('menu-drill-down').style.display = isNode ? 'flex' : 'none';
+      document.getElementById('menu-divider-analysis').style.display = isNode ? 'flex' : 'none';
+
+      // Editor options - only if in editorMode
+      document.getElementById('menu-add-node').style.display = (isEditor && (isCanvas || isNode)) ? 'flex' : 'none'; // User said AddNode on node too?
+      document.getElementById('menu-rename-node').style.display = (isEditor && isNode) ? 'flex' : 'none';
+      document.getElementById('menu-delete-node').style.display = (isEditor && isNode) ? 'flex' : 'none';
+      document.getElementById('menu-divider-editor').style.display = (isEditor && (isNode || isLink)) ? 'flex' : 'none';
+      document.getElementById('menu-delete-link').style.display = (isEditor && isLink) ? 'flex' : 'none';
+
+      // If it's a left-click on a node, we might want to hide the editor stuff even if in editor mode?
+      // No, user said: "right clicking the node in the manual editor should show ... Addnode , rename , delete"
+      // "click a Node and a Drop down menu should popup and u can select the node desc or drill now"
+      if (triggerType === 'click' && isNode) {
+        // Only show analysis
+        document.getElementById('menu-add-node').style.display = 'none';
+        document.getElementById('menu-rename-node').style.display = 'none';
+        document.getElementById('menu-delete-node').style.display = 'none';
+        document.getElementById('menu-divider-editor').style.display = 'none';
+        document.getElementById('menu-delete-link').style.display = 'none';
+      }
     }
 
     function hideContextMenu() {
@@ -2370,6 +2411,32 @@
     };
 
     // Menu Actions
+    document.getElementById('menu-show-desc').addEventListener('click', () => {
+      if (!rightClickTarget || rightClickTarget.type !== 'node') return;
+      const d = rightClickTarget.data;
+      popupTitle.textContent = d.label;
+      popupContent.textContent = "Loading description…";
+      nodePopup.style.display = "flex";
+      requestAnimationFrame(() => nodePopup.classList.add('open'));
+
+      const inputTextValue = document.getElementById("input-text").value;
+      fetch("/describe_node", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entity: d.label, text: inputTextValue })
+      })
+      .then(res => res.json())
+      .then(data => {
+        popupContent.textContent = data.description || "Could not fetch description.";
+      })
+      .catch(() => { popupContent.textContent = "Error fetching description."; });
+    });
+
+    document.getElementById('menu-drill-down').addEventListener('click', () => {
+      if (!rightClickTarget || rightClickTarget.type !== 'node') return;
+      handleDrillDown(rightClickTarget.data);
+    });
+
     document.getElementById('menu-add-node').addEventListener('click', async () => {
       const res = await showModal({
         title: "Add New Entity",
@@ -2547,6 +2614,47 @@
       } finally {
         btnSaveManual.disabled = false;
         btnSaveManual.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Save Manual Changes';
+      }
+    });
+
+    // ── Sidebar Resizing ──────────────────────────────────
+    const sidebar = document.getElementById('sidebar');
+    const resizer = document.getElementById('sidebar-resizer');
+    let isResizing = false;
+
+    resizer.addEventListener('mousedown', (e) => {
+      isResizing = true;
+      resizer.classList.add('dragging');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none'; // Prevent text selection
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isResizing) return;
+      
+      let newWidth = e.clientX;
+      const maxWidth = window.innerWidth / 2;
+      const minWidth = 280;
+
+      if (newWidth < minWidth) newWidth = minWidth;
+      if (newWidth > maxWidth) newWidth = maxWidth;
+
+      sidebar.style.width = newWidth + 'px';
+      
+      // Update graph if visible
+      if (simulation) {
+        W = container.clientWidth;
+        simulation.force("center", d3.forceCenter(W / 2, H / 2));
+        simulation.alpha(0.1).restart();
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isResizing) {
+        isResizing = false;
+        resizer.classList.remove('dragging');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
       }
     });
 
