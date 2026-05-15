@@ -1035,7 +1035,64 @@
       outline-offset: -2px;
     }
 
-    @media (max-width: 860px) {
+    /* ── Custom Editor Modals ───────────────────────────────── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 10000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.3s var(--ease);
+    }
+    .modal-overlay.open { opacity: 1; display: flex; }
+    .modal-box {
+      background: var(--surface);
+      border: 1px solid var(--border-strong);
+      border-radius: 12px;
+      width: 400px;
+      max-width: 90vw;
+      padding: 24px;
+      box-shadow: var(--shadow-lg);
+      transform: scale(0.9);
+      transition: transform 0.3s var(--ease);
+    }
+    .modal-overlay.open .modal-box { transform: scale(1); }
+    .modal-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: var(--text);
+    }
+    .modal-body {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+    .modal-input {
+      width: 100%;
+      margin-top: 12px;
+    }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+
+    /* ── Drill Down Pulse ──────────────────────────────────── */
+    @keyframes pulse-drill {
+      0% { r: inherit; stroke-width: 2; opacity: 1; }
+      50% { r: 40; stroke-width: 10; opacity: 0.4; }
+      100% { r: 60; stroke-width: 1; opacity: 0; }
+    }
+    .node.drilling circle {
+      animation: pulse-drill 1.5s infinite ease-out;
+      stroke: var(--accent);
+    }
       .sidebar { width: 280px; }
       .stats-bar .stat-chip:not(:first-child) { display: none; }
     }
@@ -1224,6 +1281,22 @@
           </div>
         </div>
       </div>
+ 
+       <!-- Editor Modals -->
+       <div id="editor-modal" class="modal-overlay">
+         <div class="modal-box">
+           <div id="modal-title" class="modal-title">Confirm Action</div>
+           <div id="modal-body" class="modal-body">Are you sure?</div>
+           <div id="modal-input-container" style="display: none; margin-bottom: 20px;">
+             <input type="text" id="modal-input-1" class="modal-input" placeholder="Value 1">
+             <input type="text" id="modal-input-2" class="modal-input" style="margin-top: 10px;" placeholder="Value 2">
+           </div>
+           <div class="modal-actions">
+             <button id="modal-cancel" class="btn btn-secondary">Cancel</button>
+             <button id="modal-confirm" class="btn btn-primary">Confirm</button>
+           </div>
+         </div>
+       </div>
     </div>
 
   </div>
@@ -1410,7 +1483,11 @@
             d3.select(e.sourceEvent.target).style("cursor", "grab");
             dragEnd(e, d);
           })
-        );
+        )
+        .on("dblclick", (e, d) => {
+          e.stopPropagation();
+          handleDrillDown(d);
+        });
 
       node.append("circle")
         .attr("r", d => nodeRadius(d))
@@ -2240,16 +2317,69 @@
 
     window.addEventListener('click', hideContextMenu);
 
+    // ── Modal System ───────────────────────────────────────
+    const editorModal = document.getElementById('editor-modal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalBody = document.getElementById('modal-body');
+    const modalInputContainer = document.getElementById('modal-input-container');
+    const modalInput1 = document.getElementById('modal-input-1');
+    const modalInput2 = document.getElementById('modal-input-2');
+    const modalCancel = document.getElementById('modal-cancel');
+    const modalConfirm = document.getElementById('modal-confirm');
+
+    let modalPromiseResolve = null;
+
+    function showModal({ title, body, showInputs = false, input1Label = "", input2Label = "", val1 = "", val2 = "" }) {
+      modalTitle.textContent = title;
+      modalBody.textContent = body;
+      modalInputContainer.style.display = showInputs ? 'block' : 'none';
+      modalInput1.placeholder = input1Label;
+      modalInput2.placeholder = input2Label;
+      modalInput1.value = val1;
+      modalInput2.value = val2;
+      modalInput2.style.display = input2Label ? 'block' : 'none';
+
+      editorModal.style.display = 'flex';
+      requestAnimationFrame(() => editorModal.classList.add('open'));
+
+      return new Promise((resolve) => {
+        modalPromiseResolve = resolve;
+      });
+    }
+
+    function hideModal(result) {
+      editorModal.classList.remove('open');
+      setTimeout(() => {
+        editorModal.style.display = 'none';
+        if (modalPromiseResolve) modalPromiseResolve(result);
+      }, 300);
+    }
+
+    modalCancel.onclick = () => hideModal(null);
+    modalConfirm.onclick = () => {
+      if (modalInputContainer.style.display !== 'none') {
+        hideModal({ val1: modalInput1.value, val2: modalInput2.value });
+      } else {
+        hideModal(true);
+      }
+    };
+
     // Menu Actions
-    document.getElementById('menu-add-node').addEventListener('click', () => {
-      const name = prompt("Enter entity name:");
-      if (!name) return;
-      const type = prompt("Enter entity type (PERSON, ORGANIZATION, etc.):", "OTHER").toUpperCase();
+    document.getElementById('menu-add-node').addEventListener('click', async () => {
+      const res = await showModal({
+        title: "Add New Entity",
+        body: "Enter the details for the new node.",
+        showInputs: true,
+        input1Label: "Entity Name",
+        input2Label: "Entity Type (e.g. PERSON, ORGANIZATION)"
+      });
+      
+      if (!res || !res.val1) return;
       
       const newNode = {
-        id: name.toLowerCase().replace(/\s+/g, '_') + '_' + Date.now(),
-        label: name,
-        type: type,
+        id: res.val1.toLowerCase().replace(/\s+/g, '_') + '_' + Date.now(),
+        label: res.val1,
+        type: (res.val2 || "OTHER").toUpperCase(),
         x: rightClickTarget.x,
         y: rightClickTarget.y,
         degree: 0
@@ -2259,18 +2389,30 @@
       refreshGraph();
     });
 
-    document.getElementById('menu-rename-node').addEventListener('click', () => {
+    document.getElementById('menu-rename-node').addEventListener('click', async () => {
       const oldName = rightClickTarget.data.label;
-      const newName = prompt("Rename entity:", oldName);
-      if (!newName || newName === oldName) return;
+      const res = await showModal({
+        title: "Rename Entity",
+        body: `Changing name for "${oldName}"`,
+        showInputs: true,
+        input1Label: "New Name",
+        val1: oldName
+      });
+      
+      if (!res || !res.val1 || res.val1 === oldName) return;
       
       const node = GRAPH_DATA.nodes.find(n => n.id === rightClickTarget.data.id);
-      if (node) node.label = newName;
+      if (node) node.label = res.val1;
       refreshGraph();
     });
 
-    document.getElementById('menu-delete-node').addEventListener('click', () => {
-      if (!confirm(`Delete entity "${rightClickTarget.data.label}" and all its connections?`)) return;
+    document.getElementById('menu-delete-node').addEventListener('click', async () => {
+      const res = await showModal({
+        title: "Delete Entity",
+        body: `Are you sure you want to delete "${rightClickTarget.data.label}" and all its connections? This cannot be undone.`
+      });
+      
+      if (!res) return;
       
       const id = rightClickTarget.data.id;
       GRAPH_DATA.nodes = GRAPH_DATA.nodes.filter(n => n.id !== id);
@@ -2282,8 +2424,13 @@
       refreshGraph();
     });
 
-    document.getElementById('menu-delete-link').addEventListener('click', () => {
-      if (!confirm("Delete this relationship?")) return;
+    document.getElementById('menu-delete-link').addEventListener('click', async () => {
+      const res = await showModal({
+        title: "Delete Relationship",
+        body: "Are you sure you want to remove this connection?"
+      });
+      
+      if (!res) return;
       
       const linkData = rightClickTarget.data;
       GRAPH_DATA.links = GRAPH_DATA.links.filter(l => l !== linkData);
@@ -2292,6 +2439,86 @@
 
     function refreshGraph() {
       initGraph(GRAPH_DATA);
+    }
+
+    async function handleDrillDown(d) {
+      // 1. Add visual feedback
+      const nodeEl = d3.selectAll(".node").filter(n => n.id === d.id);
+      nodeEl.classed("drilling", true);
+      
+      try {
+        // 2. Call backend
+        const response = await fetch('/drill_down', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ entity: d.label })
+        });
+        
+        if (!response.ok) throw new Error("Drill-down failed");
+        
+        const newData = await response.json();
+        
+        if (!newData.nodes || newData.nodes.length === 0) {
+          alert(`No additional niche details found for "${d.label}".`);
+          return;
+        }
+
+        // 3. Merge data
+        let addedCount = 0;
+        const existingNodeLabels = new Set(GRAPH_DATA.nodes.map(n => n.label.toLowerCase()));
+        
+        // Merge nodes
+        newData.nodes.forEach(newNode => {
+          if (!existingNodeLabels.has(newNode.label.toLowerCase())) {
+            // New node, assign a new numeric ID to avoid conflicts
+            const nextId = Math.max(...GRAPH_DATA.nodes.map(n => n.id)) + 1;
+            const nodeToPush = { ...newNode, id: nextId };
+            // Set initial position near the parent node
+            nodeToPush.x = d.x + (Math.random() - 0.5) * 100;
+            nodeToPush.y = d.y + (Math.random() - 0.5) * 100;
+            GRAPH_DATA.nodes.push(nodeToPush);
+            existingNodeLabels.add(newNode.label.toLowerCase());
+            addedCount++;
+          }
+        });
+
+        // Re-map IDs for links
+        const labelToIdMap = {};
+        GRAPH_DATA.nodes.forEach(n => labelToIdMap[n.label.toLowerCase()] = n.id);
+
+        // Merge links
+        newData.links.forEach(newLink => {
+          const sid = labelToIdMap[newLink.source_label?.toLowerCase() || (typeof newLink.source === 'string' ? newLink.source.toLowerCase() : null)];
+          const tid = labelToIdMap[newLink.target_label?.toLowerCase() || (typeof newLink.target === 'string' ? newLink.target.toLowerCase() : null)];
+          
+          if (sid && tid) {
+            // Check if link already exists
+            const exists = GRAPH_DATA.links.some(l => {
+              const curSid = typeof l.source === 'object' ? l.source.id : l.source;
+              const curTid = typeof l.target === 'object' ? l.target.id : l.target;
+              return (curSid === sid && curTid === tid && l.label === newLink.label);
+            });
+            
+            if (!exists) {
+              GRAPH_DATA.links.push({
+                source: sid,
+                target: tid,
+                label: newLink.label,
+                description: newLink.description
+              });
+            }
+          }
+        });
+
+        // 4. Update visualization
+        refreshGraph();
+        
+      } catch (err) {
+        console.error(err);
+        alert("Error exploring sub-graph: " + err.message);
+      } finally {
+        nodeEl.classed("drilling", false);
+      }
     }
 
     btnSaveManual.addEventListener('click', async () => {

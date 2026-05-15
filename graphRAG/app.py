@@ -107,6 +107,21 @@ def describe_node_route():
     desc = describe_node(entity, text)
     return jsonify({"description": desc})
 
+
+@app.route('/drill_down', methods=['POST'])
+def drill_down():
+    """
+    Perform a deep dive into a specific entity.
+    Expected JSON: { "entity": "Name" }
+    """
+    data = request.get_json()
+    if not data or 'entity' not in data:
+        return jsonify({"error": "Missing 'entity' field"}), 400
+    
+    from generate_kg import drill_down_node
+    result = drill_down_node(data['entity'])
+    return jsonify(result)
+
 @app.route('/generate_report', methods=['POST'])
 def generate_report():
     """

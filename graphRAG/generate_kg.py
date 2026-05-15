@@ -196,9 +196,18 @@ def get_augmented_text(text: str) -> str:
     return augmented
 
 
-def call_hf_inference(text: str, model: str, token: str) -> str:
+def call_hf_inference_with_prompt(prompt: str, model: str, token: str) -> str:
     from huggingface_hub import InferenceClient
-    
+    client = InferenceClient(token=token)
+    response = client.chat_completion(
+        messages=[{"role": "user", "content": prompt}],
+        model=model,
+        max_tokens=1500
+    )
+    return response.choices[0].message.content
+
+
+def call_hf_inference(text: str, model: str, token: str) -> str:
     prompt = (
         "You are a precision Knowledge Graph engine. Return ONLY a raw JSON array, no markdown, no explanation.\n\n"
         "Each item: {\"subject\": \"Entity\", \"predicate\": \"RELATION\", \"object\": \"Entity\"}\n\n"
@@ -228,13 +237,7 @@ def call_hf_inference(text: str, model: str, token: str) -> str:
         "]\n\n"
         f"TEXT:\n{text}\n\nJSON OUTPUT (array only):"
     )
-    client = InferenceClient(token=token)
-    response = client.chat_completion(
-        messages=[{"role": "user", "content": prompt}],
-        model=model,
-        max_tokens=1500
-    )
-    return response.choices[0].message.content
+    return call_hf_inference_with_prompt(prompt, model, token)
 
 
 def parse_triples_from_text(text: str):
@@ -431,6 +434,8 @@ def triples_to_graph(triples, text=""):
         edges.append({
             "source": s_id,
             "target": o_id,
+            "source_label": s,
+            "target_label": o,
             "label": str(p_raw),
             "description": f"{s} {p_raw} {o}"
         })
@@ -875,6 +880,81 @@ def describe_node(entity: str, context_text: str) -> str:
             return response.choices[0].message.content.strip()
         except Exception as e:
             print(f"Describe node HF call failed: {e}")
+            return "No detailed description available."
+    
+    return "No detailed description available."
+
+
+def drill_down_node(entity_name: str) -> dict:
+    """
+    Performs a deep dive into a specific entity by querying the VDB
+    and extracting secondary relationships.
+    """
+    if not vdb_collection:
+        return {"nodes": [], "links": [], "error": "VDB not initialized"}
+    
+    print(f"DEBUG: Performing Drill-Down for: {entity_name}...")
+    
+    # 1. Query VDB for context about this entity
+    results = vdb_collection.query(
+        query_texts=[entity_name],
+        n_results=5
+    )
+    
+    context = "\n\n".join(results['documents'][0]) if results['documents'] else ""
+    if not context:
+        print(f"DEBUG: No additional context found in VDB for {entity_name}")
+        return {"nodes": [], "links": []}
+
+    # 2. Specialized prompt for Drill-Down
+    prompt = (
+        "You are a sub-graph extraction engine. Extract niche relationships specifically involving "
+        f"the entity '{entity_name}' from the context below.\n\n"
+        "Return ONLY a raw JSON array of triples: {\"subject\", \"predicate\", \"object\"}.\n"
+        "Focus on specific attributes, secondary connections, and details mentioned in the text.\n\n"
+        f"CONTEXT:\n{context}\n\nJSON OUTPUT (array only):"
+    )
+    
+    triples = []
+    
+    # Try local or HF
+    if USE_LOCAL_GGUF:
+        out = call_local_gguf(prompt)
+        triples = parse_triples_from_text(out)
+    
+    if not triples and USE_LOCAL_LLM:
+        out = call_local_llm(prompt)
+        triples = parse_triples_from_text(out)
+
+    if not triples and HF_API and HF_MODEL:
+        try:
+            out = call_hf_inference_with_prompt(prompt, HF_MODEL, HF_API)
+            triples = parse_triples_from_text(out)
+        except Exception as e:
+            print(f"HF Inference failed for drill-down: {e}")
+            # Try fallback
+            try:
+                out = call_hf_inference_with_prompt(prompt, FALLBACK_HF_MODEL, HF_API)
+                triples = parse_triples_from_text(out)
+            except: pass
+
+    if not triples:
+        # Heuristic fallback if LLM fails
+        triples = fallback_extract(context)
+        # Filter triples to only those involving the entity
+        triples = [t for t in triples if entity_name.lower() in t[0].lower() or entity_name.lower() in t[2].lower()]
+
+    if not triples:
+        return {"nodes": [], "links": []}
+
+    # Convert to graph format
+    graph = triples_to_graph(triples, context)
+    
+    # Rename 'edges' to 'links' for consistency with frontend
+    return {
+        "nodes": graph["nodes"],
+        "links": graph["edges"]
+    }
             pass
             
     return "Description could not be generated. Please check your LLM configuration."
