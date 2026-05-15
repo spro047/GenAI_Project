@@ -980,6 +980,61 @@
     }
     .meta-pill strong { color: var(--text); font-weight: 600; }
 
+    /* ── Context Menu ────────────────────────────────────────── */
+    .context-menu {
+      position: fixed;
+      background: var(--surface);
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      padding: 6px 0;
+      min-width: 160px;
+      box-shadow: var(--shadow-lg);
+      z-index: 9000;
+      display: none;
+      flex-direction: column;
+    }
+    .menu-item {
+      padding: 8px 14px;
+      font-size: 13px;
+      color: var(--text);
+      cursor: pointer;
+      transition: background 0.2s var(--ease);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .menu-item:hover {
+      background: var(--surface-alt);
+      color: var(--accent);
+    }
+    .menu-item.danger:hover {
+      color: var(--danger);
+      background: var(--accent-soft);
+    }
+    .menu-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 4px 0;
+    }
+
+    /* ── Editor Mode ─────────────────────────────────────────── */
+    .editor-active-pill {
+      background: var(--accent);
+      color: var(--accent-ink);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-left: 8px;
+      text-transform: uppercase;
+      display: none;
+    }
+    body.editor-mode .editor-active-pill { display: inline-block; }
+    body.editor-mode #graph-container {
+      outline: 2px solid var(--accent);
+      outline-offset: -2px;
+    }
+
     @media (max-width: 860px) {
       .sidebar { width: 280px; }
       .stats-bar .stat-chip:not(:first-child) { display: none; }
@@ -992,7 +1047,7 @@
   <header>
     <div class="brand">
       <div class="brand-mark">K</div>
-      <h1>Knowledge Graph</h1>
+      <h1>Knowledge Graph <span class="editor-active-pill">Manual Editor</span></h1>
     </div>
 
     <div class="stats-bar">
@@ -1014,6 +1069,20 @@
   <div class="layout">
 
     <aside class="sidebar">
+ 
+       <div class="sidebar-section">
+         <div class="sidebar-label">Manual Editor</div>
+         <div class="input-wrap">
+           <button id="btn-toggle-editor" class="btn btn-secondary" style="width: 100%;">
+             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+             Enable Manual Override
+           </button>
+           <button id="btn-save-manual" class="btn btn-primary" style="width: 100%; display: none;">
+             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+             Save Manual Changes
+           </button>
+         </div>
+       </div>
 
       <div class="sidebar-section">
         <div class="sidebar-label">Input</div>
@@ -1114,6 +1183,26 @@
       </svg>
 
       <div id="tooltip"></div>
+ 
+       <div id="context-menu" class="context-menu">
+         <div class="menu-item" id="menu-add-node">
+           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+           Add New Node
+         </div>
+         <div class="menu-item" id="menu-rename-node">
+           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+           Rename Entity
+         </div>
+         <div class="menu-item danger" id="menu-delete-node">
+           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+           Delete Entity
+         </div>
+         <div class="menu-divider"></div>
+         <div class="menu-item danger" id="menu-delete-link">
+           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+           Delete Relationship
+         </div>
+       </div>
 
       <div id="node-popup">
         <div class="popup-header">
@@ -2087,6 +2176,147 @@
 
     sendChat.addEventListener('click', handleChat);
     chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleChat(); });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // INTERACTIVE MANUAL EDITOR
+    // ═══════════════════════════════════════════════════════════════════════════
+    let editorMode = false;
+    let rightClickTarget = null; // { type: 'node'|'link'|'canvas', data: ... }
+    
+    const contextMenu = document.getElementById('context-menu');
+    const btnToggleEditor = document.getElementById('btn-toggle-editor');
+    const btnSaveManual = document.getElementById('btn-save-manual');
+
+    btnToggleEditor.addEventListener('click', () => {
+      editorMode = !editorMode;
+      document.body.classList.toggle('editor-mode', editorMode);
+      btnToggleEditor.innerHTML = editorMode ? 
+        '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"></path></svg> Disable Editor' :
+        '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> Enable Manual Override';
+      btnSaveManual.style.display = editorMode ? 'inline-flex' : 'none';
+      
+      if (!editorMode) hideContextMenu();
+    });
+
+    // Right-click handling on SVG
+    svg.on("contextmenu", (e) => {
+      if (!editorMode) return;
+      e.preventDefault();
+      
+      const target = e.target;
+      const d3Target = d3.select(target);
+      
+      // Determine what was clicked
+      if (d3Target.datum() && d3Target.datum().label !== undefined) {
+        // Clicked a node (or node text)
+        rightClickTarget = { type: 'node', data: d3Target.datum() };
+        showContextMenu(e.clientX, e.clientY, 'node');
+      } else if (d3Target.classed('link') || d3Target.classed('edge-label') || d3Target.classed('edge-label-bg')) {
+        // Clicked a link
+        rightClickTarget = { type: 'link', data: d3Target.datum() };
+        showContextMenu(e.clientX, e.clientY, 'link');
+      } else {
+        // Clicked canvas
+        rightClickTarget = { type: 'canvas', x: e.offsetX, y: e.offsetY };
+        showContextMenu(e.clientX, e.clientY, 'canvas');
+      }
+    });
+
+    function showContextMenu(x, y, type) {
+      contextMenu.style.display = 'flex';
+      contextMenu.style.left = x + 'px';
+      contextMenu.style.top = y + 'px';
+      
+      // Toggle visibility based on target type
+      document.getElementById('menu-add-node').style.display = (type === 'canvas') ? 'flex' : 'none';
+      document.getElementById('menu-rename-node').style.display = (type === 'node') ? 'flex' : 'none';
+      document.getElementById('menu-delete-node').style.display = (type === 'node') ? 'flex' : 'none';
+      document.getElementById('menu-delete-link').style.display = (type === 'link') ? 'flex' : 'none';
+    }
+
+    function hideContextMenu() {
+      contextMenu.style.display = 'none';
+    }
+
+    window.addEventListener('click', hideContextMenu);
+
+    // Menu Actions
+    document.getElementById('menu-add-node').addEventListener('click', () => {
+      const name = prompt("Enter entity name:");
+      if (!name) return;
+      const type = prompt("Enter entity type (PERSON, ORGANIZATION, etc.):", "OTHER").toUpperCase();
+      
+      const newNode = {
+        id: name.toLowerCase().replace(/\s+/g, '_') + '_' + Date.now(),
+        label: name,
+        type: type,
+        x: rightClickTarget.x,
+        y: rightClickTarget.y,
+        degree: 0
+      };
+      
+      GRAPH_DATA.nodes.push(newNode);
+      refreshGraph();
+    });
+
+    document.getElementById('menu-rename-node').addEventListener('click', () => {
+      const oldName = rightClickTarget.data.label;
+      const newName = prompt("Rename entity:", oldName);
+      if (!newName || newName === oldName) return;
+      
+      const node = GRAPH_DATA.nodes.find(n => n.id === rightClickTarget.data.id);
+      if (node) node.label = newName;
+      refreshGraph();
+    });
+
+    document.getElementById('menu-delete-node').addEventListener('click', () => {
+      if (!confirm(`Delete entity "${rightClickTarget.data.label}" and all its connections?`)) return;
+      
+      const id = rightClickTarget.data.id;
+      GRAPH_DATA.nodes = GRAPH_DATA.nodes.filter(n => n.id !== id);
+      GRAPH_DATA.links = GRAPH_DATA.links.filter(l => {
+        const sid = typeof l.source === 'object' ? l.source.id : l.source;
+        const tid = typeof l.target === 'object' ? l.target.id : l.target;
+        return sid !== id && tid !== id;
+      });
+      refreshGraph();
+    });
+
+    document.getElementById('menu-delete-link').addEventListener('click', () => {
+      if (!confirm("Delete this relationship?")) return;
+      
+      const linkData = rightClickTarget.data;
+      GRAPH_DATA.links = GRAPH_DATA.links.filter(l => l !== linkData);
+      refreshGraph();
+    });
+
+    function refreshGraph() {
+      initGraph(GRAPH_DATA);
+    }
+
+    btnSaveManual.addEventListener('click', async () => {
+      btnSaveManual.disabled = true;
+      btnSaveManual.innerHTML = '<span class="spinner"></span> Saving…';
+      
+      try {
+        const response = await fetch('/save_graph', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(GRAPH_DATA)
+        });
+        
+        if (response.ok) {
+          alert("Changes saved successfully!");
+        } else {
+          alert("Failed to save changes.");
+        }
+      } catch (err) {
+        alert("Error saving: " + err.message);
+      } finally {
+        btnSaveManual.disabled = false;
+        btnSaveManual.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Save Manual Changes';
+      }
+    });
 
   </script>
 </body>

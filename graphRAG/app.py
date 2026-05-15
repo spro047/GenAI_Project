@@ -183,6 +183,25 @@ def export_pdf():
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
+@app.route('/save_graph', methods=['POST'])
+def save_graph():
+    """
+    Saves the current state of the knowledge graph to graph_data.json.
+    Expected JSON: { "nodes": [...], "links": [...], "communities": N }
+    """
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No data received"}), 400
+    
+    try:
+        # Save to the local JSON file
+        # In a more advanced version, this would update workspace.db
+        with open('graph_data.json', 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2)
+        return jsonify({"status": "success"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8000))
     print(f"Starting Knowledge Graph Builder on http://localhost:{port}")
