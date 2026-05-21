@@ -1,3 +1,6 @@
 vdb_storage/
 __pycache__/
 *.pyc
+graph_data.json
+workspace.db
+knowledge_graph.html

@@ -2,3 +2,8 @@
 __pycache__/
 raw_llm_output.txt
 test.py
+*.log
+*.tmp
+graphRAG/graph_data.json
+graphRAG/workspace.db
+graphRAG/knowledge_graph.html

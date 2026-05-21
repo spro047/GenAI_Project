@@ -60,7 +60,10 @@ except Exception as e:
 
 
 def call_local_llm(text: str) -> str:
-    """Calls a local LLM server (OpenAI-compatible like llama.cpp or Ollama)."""
+    """
+    Calls a local LLM server (OpenAI-compatible like llama.cpp or Ollama).
+    Extracts knowledge graph triples from the input text.
+    """
     headers = {"Content-Type": "application/json"}
     payload = {
         "messages": [
@@ -88,7 +91,10 @@ def call_local_llm(text: str) -> str:
 
 
 def call_local_gguf(text: str) -> str:
-    """Calls a local GGUF model directly using llama-cpp-python."""
+    """
+    Calls a local GGUF model directly using llama-cpp-python.
+    This bypasses the need for an external server.
+    """
     global _LOCAL_MODEL_INSTANCE
     
     if not LOCAL_GGUF_MODEL or not os.path.exists(LOCAL_GGUF_MODEL):
@@ -135,7 +141,10 @@ def call_local_gguf(text: str) -> str:
 
 
 def search_serpapi(query: str) -> str:
-    """Searches SerpAPI for additional information about a query."""
+    """
+    Searches SerpAPI for additional information about a query.
+    Enriches the knowledge graph with external context.
+    """
     if not SERPAPI_KEY:
         print("DEBUG: SERPAPI_KEY not found in environment.")
         return ""
@@ -167,18 +176,23 @@ def search_serpapi(query: str) -> str:
 
 
 def extract_key_entities(text: str) -> list:
-    """Extracts potential key entities for searching."""
-    # Simple heuristic: capitalized words that aren't at the start of sentences (mostly)
-    # or just sequences of capitalized words.
+    """
+    Extracts potential key entities for searching using a simple heuristic.
+    Identifies capitalized proper nouns.
+    """
+    # Simple heuristic: capitalized words that aren't at the start of sentences
     entities = re.findall(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b', text)
-    # Filter out common stop words if they got caught
+    # Filter out common stop words
     stop_words = {"The", "A", "An", "In", "On", "At", "To", "For", "Of", "With", "By"}
     unique_entities = list(set([e for e in entities if e not in stop_words]))
     return unique_entities[:3] # Limit to top 3 for searching
 
 
 def get_augmented_text(text: str) -> str:
-    """Augments the input text with information from SerpAPI."""
+    """
+    Augments the input text with real-time information from SerpAPI.
+    This provides the LLM with up-to-date facts beyond its training data.
+    """
     entities = extract_key_entities(text)
     if not entities:
         return text
@@ -197,6 +211,10 @@ def get_augmented_text(text: str) -> str:
 
 
 def call_hf_inference_with_prompt(prompt: str, model: str, token: str) -> str:
+    """
+    Generic wrapper to call the Hugging Face Inference API with a specific prompt.
+    Returns the raw string response from the model.
+    """
     from huggingface_hub import InferenceClient
     client = InferenceClient(token=token)
     response = client.chat_completion(
@@ -208,6 +226,10 @@ def call_hf_inference_with_prompt(prompt: str, model: str, token: str) -> str:
 
 
 def call_hf_inference(text: str, model: str, token: str) -> str:
+    """
+    Extracts knowledge graph triples from text using a Hugging Face LLM.
+    Provides strict rules and formatting instructions in the prompt.
+    """
     prompt = (
         "You are a precision Knowledge Graph engine. Return ONLY a raw JSON array, no markdown, no explanation.\n\n"
         "Each item: {\"subject\": \"Entity\", \"predicate\": \"RELATION\", \"object\": \"Entity\"}\n\n"
@@ -241,6 +263,10 @@ def call_hf_inference(text: str, model: str, token: str) -> str:
 
 
 def parse_triples_from_text(text: str):
+    """
+    Parses the LLM output to extract triples.
+    Tries JSON parsing first, then falls back to a line-based heuristic.
+    """
     # Strip markdown code fences
     clean = re.sub(r'```(?:json)?', '', text).strip().rstrip('`').strip()
     # Find JSON array anywhere in output
@@ -372,7 +398,7 @@ def triples_to_graph(triples, text=""):
         if words & tech_words:
             return "TECHNOLOGY"
 
-        # 1-3 capitalized words Ã¢â€ â€™ likely a person
+        # 1-3 capitalized words -> likely a person
         ws = entity.split()
         if 1 <= len(ws) <= 3 and all(w[0].isupper() for w in ws if w):
             return "PERSON"
@@ -598,8 +624,7 @@ def fallback_extract(text: str):
         add(m.group(1), 'PROVIDES', m.group(2))
 
 
-    # â”€â”€ Narrative / story patterns â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
+    # 
     # "X ruled/governs/governed by Y" -> (X, RULED_BY, Y)
     for m in re.finditer(rf'{E}\s+(?:is\s+a\s+\S+\s+family\s+)?ruled\s+by\s+{E}', text):
         add(m.group(1), 'RULED_BY', m.group(2))
@@ -811,15 +836,6 @@ def generate_graph_from_text(text: str) -> dict:
             print(f"Using Hugging Face model: {HF_MODEL}...")
             out = call_hf_inference(augmented_text, HF_MODEL, HF_API)
             
-            # --- DEBUG LOGGING ---
-            print("\n" + "="*50)
-            print("RAW LLM OUTPUT:")
-            print(out)
-            print("="*50 + "\n")
-            with open("raw_llm_output.txt", "w", encoding="utf-8") as f:
-                f.write(out)
-            # ---------------------
-            
             triples = parse_triples_from_text(out)
             if triples: 
                 extraction_method = f"Hugging Face ({HF_MODEL})"
@@ -830,7 +846,7 @@ def generate_graph_from_text(text: str) -> dict:
             if "model_not_supported" in str(e) and HF_MODEL != FALLBACK_HF_MODEL:
                 try:
                     print(f"Model '{HF_MODEL}' not supported. Trying fallback model '{FALLBACK_HF_MODEL}'...")
-                    out = call_hf_inference(text, FALLBACK_HF_MODEL, HF_API)
+                    out = call_hf_inference(augmented_text, FALLBACK_HF_MODEL, HF_API)
                     triples = parse_triples_from_text(out)
                     if not triples:
                         print("Fallback model output could not be parsed as triples, falling back to heuristic.")
@@ -1268,8 +1284,12 @@ def generate_graph_report(nodes: list, links: list, communities: int) -> str:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate a simple KG from text using Hugging Face models")
-    parser.add_argument("--text", help="The input text (wrap in quotes) ")
+    """
+    CLI interface to generate a knowledge graph from a file or string.
+    Uses the same extraction logic as the web application.
+    """
+    parser = argparse.ArgumentParser(description="Generate a KG from text.")
+    parser.add_argument("--text", help="The input text (wrap in quotes)")
     parser.add_argument("--file", help="Path to a text file to read input from")
     parser.add_argument("--out", default="graph_data.json", help="Output JSON file")
     args = parser.parse_args()
@@ -1278,60 +1298,37 @@ def main():
         print("Provide --text or --file input. Exiting.")
         sys.exit(1)
 
+    text = ""
     if args.file:
-        with open(args.file, "r", encoding="utf8") as f:
-            text = f.read()
+        try:
+            with open(args.file, "r", encoding="utf8") as f:
+                text = f.read()
+        except Exception as e:
+            print(f"Error reading file: {e}")
+            sys.exit(1)
     else:
         text = args.text
 
-    triples = []
-    if USE_LOCAL_GGUF:
-        print(f"Using local GGUF model: {LOCAL_GGUF_MODEL}...")
-        out = call_local_gguf(text)
-        triples = parse_triples_from_text(out)
+    if not text.strip():
+        print("Error: Input text is empty.")
+        sys.exit(1)
 
-    if not triples and USE_LOCAL_LLM:
-        print(f"Using local LLM at {LOCAL_LLM_URL}...")
-        out = call_local_llm(text)
-        triples = parse_triples_from_text(out)
-
-    if not triples and HF_API and HF_MODEL:
-        try:
-            print(f"Calling Hugging Face model '{HF_MODEL}' for triple extraction...")
-            out = call_hf_inference(text, HF_MODEL, HF_API)
-            
-            # --- DEBUG LOGGING ---
-            print("\n" + "="*50)
-            print("RAW LLM OUTPUT:")
-            print(out)
-            print("="*50 + "\n")
-            with open("raw_llm_output.txt", "w", encoding="utf-8") as f:
-                f.write(out)
-            # ---------------------
-            
-            triples = parse_triples_from_text(out)
-            if not triples:
-                print("Model output could not be parsed as triples, falling back to heuristic.")
-        except Exception as e:
-            if "model_not_supported" in str(e) and HF_MODEL != FALLBACK_HF_MODEL:
-                print(f"Model '{HF_MODEL}' not supported. Trying fallback model '{FALLBACK_HF_MODEL}'...")
-                try:
-                    out = call_hf_inference(text, FALLBACK_HF_MODEL, HF_API)
-                    triples = parse_triples_from_text(out)
-                    if not triples:
-                        print("Fallback model output could not be parsed as triples, falling back to heuristic.")
-                except Exception as e2:
-                    print(f"Fallback model call failed: {e2}. Falling back to heuristic.")
-            else:
-                print(f"Hugging Face call failed: {e}. Falling back to heuristic.")
-
-    if not triples:
-        triples = fallback_extract(text)
-
-    graph = triples_to_graph(triples, text)
-    with open(args.out, "w", encoding="utf8") as f:
-        json.dump(graph, f, indent=2, ensure_ascii=False)
-    print(f"Wrote graph to {args.out} (nodes: {len(graph['nodes'])}, edges: {len(graph['edges'])})")
+    # Use the same unified generation logic as the web app
+    # This handles fallbacks, SerpAPI, and community detection
+    print(f"Processing knowledge graph extraction (Text length: {len(text)})...")
+    result = generate_graph_from_text(text)
+    
+    # Save the result to the specified output file
+    try:
+        with open(args.out, "w", encoding="utf8") as f:
+            json.dump(result, f, indent=2, ensure_ascii=False)
+        
+        print(f"Success! Wrote graph to {args.out}")
+        print(f"Metrics: {len(result['nodes'])} nodes, {len(result['links'])} links, {result['communities']} communities.")
+        print(f"Extraction Method: {result['extraction_method']}")
+    except Exception as e:
+        print(f"Error saving graph data: {e}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
