@@ -1087,7 +1087,7 @@
         <div class="input-wrap">
           <div style="display: flex; gap: 8px; margin-bottom: 8px;">
             <select id="project-selector" class="btn btn-secondary" style="flex: 1; text-align: left; font-size: 13px;">
-              <option value="">PERSONAL</option>
+              <option value="">No Workspace</option>
             </select>
             <button id="btn-new-project" class="btn btn-secondary" title="New Project" style="padding: 0 10px;">+</button>
           </div>
@@ -1891,7 +1891,7 @@
     async function loadProjects() {
       const resp = await fetch("/projects");
       const projects = await resp.json();
-      projectSelector.innerHTML = '<option value="">(Personal Space)</option>';
+      projectSelector.innerHTML = '<option value="">No Workspace</option>';
       projects.forEach(p => {
         const opt = document.createElement("option");
         opt.value = p.id;
@@ -1901,7 +1901,7 @@
     }
 
     btnNewProject.addEventListener("click", async () => {
-      const name = prompt("Enter project name:");
+      const name = prompt("Name your workspace:");
       if (!name) return;
       
       const resp = await fetch("/projects", {
@@ -2026,9 +2026,46 @@
     // ═══════════════════════════════════════════════════════════════════════════
     // RECENTS
     // ═══════════════════════════════════════════════════════════════════════════
+    function getGraphShortTitle(data) {
+      if (!data || !data.nodes || data.nodes.length === 0) return "GRAPH";
+      
+      const degrees = {};
+      data.nodes.forEach(n => {
+        degrees[n.id] = 0;
+      });
+      
+      if (data.links) {
+        data.links.forEach(l => {
+          const s = (l.source && typeof l.source === 'object') ? l.source.id : l.source;
+          const t = (l.target && typeof l.target === 'object') ? l.target.id : l.target;
+          if (degrees[s] !== undefined) degrees[s]++;
+          if (degrees[t] !== undefined) degrees[t]++;
+        });
+      }
+      
+      let maxDeg = -1;
+      let centralNode = null;
+      data.nodes.forEach(n => {
+        const deg = degrees[n.id] || 0;
+        if (deg > maxDeg) {
+          maxDeg = deg;
+          centralNode = n;
+        }
+      });
+      
+      if (centralNode && centralNode.label) {
+        let label = centralNode.label.trim();
+        if (label.length > 15) {
+          label = label.substring(0, 12) + "...";
+        }
+        return label.toUpperCase();
+      }
+      return "GRAPH";
+    }
+
     function saveToRecents(text, data) {
       let recents = JSON.parse(localStorage.getItem('recentGraphs') || '[]');
-      const title = data.title || (text.length > 30 ? text.substring(0, 30) + "…" : text);
+      const title = getGraphShortTitle(data);
       recents = recents.filter(item => item.text !== text);
       const newItem = {
         id: Date.now().toString(),
@@ -2243,6 +2280,12 @@
     const tabsList = document.getElementById("tabs-list");
 
     function addTab(data, title) {
+      // Generate a short name based on the graph data
+      let tabTitle = getGraphShortTitle(data);
+      if (title === "UNIFIED") {
+        tabTitle = "UNIFIED: " + tabTitle;
+      }
+
       // Check if this graph data is already open
       const existing = OPEN_TABS.find(t => t.data.nodes.length === data.nodes.length && 
                                            t.data.nodes[0]?.label === data.nodes[0]?.label);
@@ -2252,7 +2295,7 @@
       }
 
       const id = Date.now().toString();
-      const newTab = { id, title, data };
+      const newTab = { id, title: tabTitle, data };
       OPEN_TABS.push(newTab);
       renderTabs();
       switchTab(id);
