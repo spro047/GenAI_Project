@@ -19,8 +19,10 @@ from generate_kg import (
     index_text_in_vdb, 
     delete_text_from_vdb, 
     generate_graph_report,
-    drill_down_node
+    drill_down_node,
+    merge_graphs
 )
+import database
 
 app = Flask(__name__, static_folder='.', static_url_path='')
 
@@ -230,8 +232,84 @@ def save_graph():
         return jsonify({"error": str(e)}), 500
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# WORKSPACE / PROJECT ENDPOINTS
+# ═══════════════════════════════════════════════════════════════════════════
+
+@app.route('/projects', methods=['GET', 'POST'])
+def handle_projects():
+    """
+    GET: List all projects.
+    POST: Create a new project. Expected JSON: { "name": "Project Name" }
+    """
+    if request.method == 'POST':
+        data = request.get_json()
+        name = data.get('name', 'New Project')
+        p_id = database.create_project(name)
+        return jsonify({"id": p_id, "name": name})
+    else:
+        return jsonify(database.list_projects())
+
+@app.route('/projects/<int:project_id>', methods=['DELETE'])
+def delete_project_route(project_id):
+    """Delete a project and all its associated data."""
+    database.delete_project(project_id)
+    return jsonify({"status": "success"})
+
+@app.route('/ingest', methods=['POST'])
+def ingest_document():
+    """
+    Ingests a document into a project and generates its individual graph.
+    Expected JSON: { "project_id": 1, "text": "...", "filename": "doc.txt" }
+    """
+    data = request.get_json()
+    project_id = data.get('project_id')
+    text = data.get('text', '').strip()
+    filename = data.get('filename', 'document.txt')
+    
+    if not project_id or not text:
+        return jsonify({"error": "Missing project_id or text"}), 400
+    
+    try:
+        # 1. Generate Graph
+        result = generate_graph_from_text(text)
+        
+        # 2. Save to Workspace DB
+        doc_id = database.add_document(project_id, filename, text)
+        database.save_graph(project_id, doc_id, result)
+        
+        # 3. Index in VDB for RAG
+        index_text_in_vdb(text)
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/merge_workspace', methods=['POST'])
+def merge_workspace():
+    """
+    Merges all graphs within a project into one unified visualization.
+    Expected JSON: { "project_id": 1 }
+    """
+    data = request.get_json()
+    project_id = data.get('project_id')
+    
+    if not project_id:
+        return jsonify({"error": "Missing project_id"}), 400
+        
+    try:
+        graphs = database.get_project_graphs(project_id)
+        if not graphs:
+            return jsonify({"error": "No graphs found in this project"}), 404
+            
+        merged = merge_graphs(graphs)
+        return jsonify(merged)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == '__main__':
     # Start the Flask server
     port = int(os.getenv('PORT', 8000))
     print(f"Starting Knowledge Graph Builder on http://localhost:{port}")
-    app.run(host='0.0.0.0', port=port, debug=True)
+    app.run(host='0.0.0.0', port=port, debug=True)
