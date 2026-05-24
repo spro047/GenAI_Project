@@ -21,13 +21,22 @@ from chromadb.utils import embedding_functions
 from serpapi import GoogleSearch
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# Load environment variables (override=True ensures fresh .env values are always used)
+load_dotenv(override=True)
 
 
 HF_API = os.getenv("HUGGINGFACE_API_KEY", "")
 HF_MODEL = os.getenv("HUGGINGFACE_MODEL", "meta-llama/Llama-3.3-70B-Instruct")
 SERPAPI_KEY = os.getenv("SERPAPI_KEY", "")
+
+# Startup status
+if SERPAPI_KEY:
+    print(f"[OK] SerpAPI ACTIVE - key loaded ({SERPAPI_KEY[:8]}...)")
+else:
+    print("[WARN] SerpAPI DISABLED - SERPAPI_KEY not found in .env")
+# Gemini settings
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
 # Local LLM settings
 USE_LOCAL_LLM = os.getenv("USE_LOCAL_LLM", "false").lower() == "true"
 LOCAL_LLM_URL = os.getenv("LOCAL_LLM_URL", "http://localhost:8080/v1/chat/completions")
@@ -473,7 +482,7 @@ def triples_to_graph(triples, text=""):
     return {"nodes": list(nodes.values()), "edges": edges}
 
 
-def fallback_extract(text: str):
+def fallback_extract(text: str, target_entity: str = None):
     """
     Role-based heuristic extractor.
     Uses strict case-sensitive entity patterns so that lowercase words like
@@ -794,6 +803,30 @@ def fallback_extract(text: str):
                             pred = "related to"
                         add(sub, pred, obj)
 
+    if target_entity:
+        target_lower = target_entity.lower()
+        sentences = re.split(r'[.!?\n]', text)
+        for s in sentences:
+            s = s.strip()
+            if not s or target_lower not in s.lower():
+                continue
+            # Find other capitalized entities in same sentence
+            cap_phrases = re.findall(E, s)
+            cap_phrases = [p for p in cap_phrases if len(p.strip()) > 2 and p.lower() not in JUNK and p.lower() not in LEADING_STRIP]
+            for p in cap_phrases:
+                if p.lower() != target_lower:
+                    first, second = (target_entity, p) if s.lower().find(target_lower) < s.lower().find(p.lower()) else (p, target_entity)
+                    # Extract the words between them as predicate
+                    m_between = re.search(rf'{re.escape(first.lower())}(.*?){re.escape(second.lower())}', s.lower())
+                    pred = "associated with"
+                    if m_between:
+                        pred_raw = m_between.group(1).strip()
+                        pred_clean = re.sub(r'[^a-zA-Z\s]', '', pred_raw).strip()
+                        pred_words = [w for w in pred_clean.split() if w.lower() not in ('a', 'an', 'the', 'some', 'is', 'was', 'are', 'were')]
+                        if pred_words:
+                            pred = " ".join(pred_words)
+                    add(first, pred, second)
+
     return triples
 
 
@@ -872,22 +905,45 @@ def generate_graph_from_text(text: str) -> dict:
     }
 
 def describe_node(entity: str, context_text: str) -> str:
-    """Uses LLM to generate a short description of the entity based on the context."""
-    prompt = (
-        f"Based on the following text, provide a short, 1-2 sentence description of the entity '{entity}'. "
-        "Do not include formatting, just the text. If the entity is not mentioned or you cannot determine it, "
-        "say 'No detailed description available.'\n\n"
-        f"TEXT:\n{context_text}"
-    )
-    
+    """Uses LLM to generate a short description of the entity based on the context.
+    Falls back to VDB context if the provided text is empty or too short, and
+    uses world-knowledge prompting if no context at all is available."""
+
+    # If context is empty or just the entity name, try to pull richer context from VDB
+    if vdb_collection and (not context_text or len(context_text.strip()) < 30
+                           or context_text.strip().lower() == entity.strip().lower()):
+        try:
+            results = vdb_collection.query(query_texts=[entity], n_results=3)
+            if results and results.get('documents') and results['documents'][0]:
+                context_text = "\n\n".join(results['documents'][0])
+                print(f"DEBUG: describe_node using VDB context for '{entity}'")
+        except Exception as e:
+            print(f"DEBUG: VDB query for describe_node failed: {e}")
+
+    # Build prompt: context-aware or world-knowledge fallback
+    if context_text and len(context_text.strip()) >= 10:
+        prompt = (
+            f"Based on the following text, provide a concise 1-2 sentence description of '{entity}'. "
+            "Be specific about their role, significance, or relationship to other entities. "
+            "Plain text only, no formatting.\n\n"
+            f"TEXT:\n{context_text}\n\n"
+            f"Description of '{entity}':"
+        )
+    else:
+        prompt = (
+            f"Provide a concise 1-2 sentence factual description of the entity '{entity}'. "
+            "Focus on what it is, why it is significant, or its main role. "
+            "Plain text only, no formatting."
+        )
+
     if USE_LOCAL_GGUF:
         out = call_local_gguf(prompt)
         if out: return out.strip()
-        
+
     if USE_LOCAL_LLM:
         out = call_local_llm(prompt)
         if out: return out.strip()
-        
+
     if HF_API and HF_MODEL:
         try:
             from huggingface_hub import InferenceClient
@@ -895,38 +951,65 @@ def describe_node(entity: str, context_text: str) -> str:
             response = client.chat_completion(
                 messages=[{"role": "user", "content": prompt}],
                 model=HF_MODEL,
-                max_tokens=100
+                max_tokens=200
             )
-            return response.choices[0].message.content.strip()
+            result = response.choices[0].message.content.strip()
+            # Strip any echoed prompt prefix
+            for prefix in [f"Description of '{entity}':", f"Description of {entity}:"]:
+                if result.lower().startswith(prefix.lower()):
+                    result = result[len(prefix):].strip()
+            return result if result else "No detailed description available."
         except Exception as e:
             print(f"Describe node HF call failed: {e}")
             return "No detailed description available."
-    
+
     return "No detailed description available."
 
 
-def drill_down_node(entity_name: str) -> dict:
+def drill_down_node(entity_name: str, context_text: str = "") -> dict:
     """
     Performs a deep dive into a specific entity by querying the VDB
-    and extracting secondary relationships.
+    and/or using the provided context text, and extracting secondary relationships.
     """
-    if not vdb_collection:
-        return {"nodes": [], "links": [], "error": "VDB not initialized"}
-    
     print(f"DEBUG: Performing Drill-Down for: {entity_name}...")
     
-    # 1. Query VDB for context about this entity
-    results = vdb_collection.query(
-        query_texts=[entity_name],
-        n_results=5
-    )
+    context_chunks = []
     
-    context = "\n\n".join(results['documents'][0]) if results['documents'] else ""
+    # 1. Extract relevant paragraphs from context_text if provided
+    if context_text:
+        # Split into paragraphs
+        paragraphs = [p.strip() for p in context_text.split('\n\n') if len(p.strip()) > 20]
+        entity_words = [w.lower() for w in re.findall(r'\w+', entity_name) if len(w) > 2]
+        
+        for p in paragraphs:
+            p_lower = p.lower()
+            if entity_name.lower() in p_lower:
+                context_chunks.append(p)
+            elif entity_words and sum(1 for w in entity_words if w in p_lower) / len(entity_words) >= 0.5:
+                context_chunks.append(p)
+                
+    # 2. Query VDB for additional/wider context
+    if vdb_collection:
+        try:
+            results = vdb_collection.query(
+                query_texts=[entity_name],
+                n_results=5
+            )
+            if results and results.get('documents') and results['documents'][0]:
+                for doc in results['documents'][0]:
+                    if doc not in context_chunks:
+                        context_chunks.append(doc)
+        except Exception as e:
+            print(f"DEBUG: VDB query failed in drill_down_node: {e}")
+            
+    # Combine chunks
+    context = "\n\n".join(context_chunks).strip()
+    
     if not context:
-        print(f"DEBUG: No additional context found in VDB for {entity_name}")
+        print(f"DEBUG: No context found (either in text or VDB) for '{entity_name}'")
         return {"nodes": [], "links": []}
 
-    # 2. Specialized prompt for Drill-Down
+    # 3. Specialized prompt for Drill-Down
     prompt = (
         "You are a sub-graph extraction engine. Extract niche relationships specifically involving "
         f"the entity '{entity_name}' from the context below.\n\n"
@@ -960,7 +1043,7 @@ def drill_down_node(entity_name: str) -> dict:
 
     if not triples:
         # Heuristic fallback if LLM fails
-        triples = fallback_extract(context)
+        triples = fallback_extract(context, target_entity=entity_name)
         # Filter triples to only those involving the entity
         triples = [t for t in triples if entity_name.lower() in t[0].lower() or entity_name.lower() in t[2].lower()]
 

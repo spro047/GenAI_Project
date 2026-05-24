@@ -1483,7 +1483,6 @@
     .stats-bar .stat-chip:not(:first-child) {
       display: none;
     }
-    }
   </style>
 </head>
 
@@ -1789,6 +1788,7 @@
     // ═══════════════════════════════════════════════════════════════════════════
     let GRAPH_DATA = { nodes: [], links: [], communities: 0 };
     let currentData = { nodes: [], links: [] };
+    let currentGraphText = ""; // Tracks the source text for the active graph
 
     function cssVar(name) {
       /** Fetches a CSS variable value from the document body. */
@@ -2518,6 +2518,7 @@
         }
         document.getElementById("stat-method").textContent = data.extraction_method || "—";
         document.getElementById("stat-search").textContent = data.search_augmented ? "yes" : "no";
+        currentGraphText = text;
         saveToRecents(text, data);
         initGraph(data);
       } catch (err) {
@@ -2582,6 +2583,7 @@
         });
         div.addEventListener('click', () => {
           inputText.value = item.text;
+          currentGraphText = item.text;
           document.getElementById("stat-method").textContent = item.data.extraction_method || "—";
           document.getElementById("stat-search").textContent = item.data.search_augmented ? "yes" : "no";
           initGraph(item.data);
@@ -2885,11 +2887,12 @@
       nodePopup.style.display = "flex";
       requestAnimationFrame(() => nodePopup.classList.add('open'));
 
-      const inputTextValue = document.getElementById("input-text").value;
+      // Use the tracked source text (works even when textarea is empty / loaded from recents)
+      const textForDesc = currentGraphText || document.getElementById("input-text").value || d.label;
       fetch("/describe_node", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ entity: d.label, text: inputTextValue })
+        body: JSON.stringify({ entity: d.label, text: textForDesc })
       })
         .then(res => res.json())
         .then(data => {
@@ -2987,10 +2990,11 @@
 
       try {
         // 2. Call backend
+        const textForDrill = currentGraphText || document.getElementById("input-text").value;
         const response = await fetch('/drill_down', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ entity: d.label })
+          body: JSON.stringify({ entity: d.label, text: textForDrill })
         });
 
         if (!response.ok) throw new Error("Drill-down failed");

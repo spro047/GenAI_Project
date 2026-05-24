@@ -129,7 +129,9 @@ def drill_down():
     if not data or 'entity' not in data:
         return jsonify({"error": "Missing 'entity' field"}), 400
     
-    result = drill_down_node(data['entity'])
+    entity = data['entity']
+    text = data.get('text', '')
+    result = drill_down_node(entity, text)
     return jsonify(result)
 
 
