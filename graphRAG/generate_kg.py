@@ -1333,13 +1333,32 @@ def generate_graph_report(nodes: list, links: list, communities: int) -> str:
         t = l['target']['id'] if isinstance(l['target'], dict) else l['target']
         if s in node_degrees: node_degrees[s] += 1
         if t in node_degrees: node_degrees[t] += 1
-    
+
     sorted_nodes = sorted(nodes, key=lambda n: node_degrees.get(n['id'], 0), reverse=True)
     influential = sorted_nodes[:5]
-    
-    # 2. Format context for LLM
+
+    # 2. Find isolated nodes (no connections)
+    isolated = [n for n in nodes if node_degrees.get(n['id'], 0) == 0]
+
+    # 3. Find bridges (nodes connecting different communities, if community info is available)
+    # For now, just note nodes with high degree and diverse neighbors
+    bridges = []
+    for n in nodes:
+        neighbors = set()
+        for l in links:
+            if l['source'] == n['id']:
+                neighbors.add(l['target'] if not isinstance(l['target'], dict) else l['target']['id'])
+            if l['target'] == n['id']:
+                neighbors.add(l['source'] if not isinstance(l['source'], dict) else l['source']['id'])
+        if len(neighbors) > 2 and len(neighbors) < len(nodes) // 2:
+            bridges.append(n)
+    bridges = bridges[:3]
+
+    # 4. Format context for LLM
     top_entities = "\n".join([f"- {n['label']} ({n['type']}): Central influence with {node_degrees.get(n['id'],0)} connections." for n in influential])
-    
+    isolated_entities = "\n".join([f"- {n['label']} ({n['type']})" for n in isolated]) if isolated else "None"
+    bridge_entities = "\n".join([f"- {n['label']} ({n['type']})" for n in bridges]) if bridges else "None"
+
     # Summarize key relationships (limit for context)
     top_links = links[:40]
     relationships = []
@@ -1349,28 +1368,43 @@ def generate_graph_report(nodes: list, links: list, communities: int) -> str:
         s_label = next((n['label'] for n in nodes if n['id'] == s_id), "Unknown")
         t_label = next((n['label'] for n in nodes if n['id'] == t_id), "Unknown")
         relationships.append(f"{s_label} {l['label']} {t_label}")
-    
+
     rel_str = "\n".join(relationships)
 
+    # 5. Relationship types summary
+    rel_types = {}
+    for l in links:
+        rel_types[l['label']] = rel_types.get(l['label'], 0) + 1
+    rel_types_str = ", ".join([f"{k} ({v})" for k, v in rel_types.items()])
+
     prompt = (
-        "You are a Senior Strategic Analyst. Your task is to write a high-level Professional Executive Summary based on the provided Knowledge Graph metrics.\n\n"
+        "You are a Senior Strategic Analyst. Your task is to write a detailed, professional report that explains the structure, contents, and relationships in the provided Knowledge Graph. Do not merely list what is present; instead, analyze and explain the meaning, roles, and significance of the entities and their relationships.\n\n"
         "--- GRAPH METRICS ---\n"
         f"Total Entities: {len(nodes)}\n"
         f"Total Relationships: {len(links)}\n"
         f"Detected Communities: {communities}\n\n"
         "TOP INFLUENTIAL ENTITIES:\n"
         f"{top_entities}\n\n"
+        "ISOLATED ENTITIES (no connections):\n"
+        f"{isolated_entities}\n\n"
+        "BRIDGE ENTITIES (connect clusters):\n"
+        f"{bridge_entities}\n\n"
+        "RELATIONSHIP TYPES (with counts):\n"
+        f"{rel_types_str}\n\n"
         "KEY RELATIONSHIP SAMPLES:\n"
         f"{rel_str}\n"
         "--- END METRICS ---\n\n"
         "REPORT REQUIREMENTS:\n"
-        "1. TITLE: Give the report a professional title based on the data.\n"
-        "2. EXECUTIVE OVERVIEW: A concise 2-3 sentence summary of the ecosystem.\n"
-        "3. STRUCTURAL ANALYSIS: Explain the significance of the Influential Entities and how they anchor the network.\n"
-        "4. COMMUNITY INSIGHTS: Analyze what the 'Communities' represent in this context (e.g., departmental silos, thematic clusters, etc.).\n"
-        "5. STRATEGIC RECOMMENDATIONS: Provide 2 actionable insights derived from these connections.\n\n"
+        "1. TITLE: Give the report a professional, descriptive title based on the graph's content.\n"
+        "2. EXECUTIVE OVERVIEW: A concise 2-3 sentence summary of the ecosystem and its main themes.\n"
+        "3. STRUCTURAL ANALYSIS: Explain the roles of the most influential entities, the meaning of bridges and isolated nodes, and how the network is organized.\n"
+        "4. RELATIONSHIP EXPLANATION: Describe the most important relationship types, what they mean, and how they connect entities.\n"
+        "5. COMMUNITY INSIGHTS: Analyze what the 'Communities' represent in this context (e.g., departmental silos, thematic clusters, etc.).\n"
+        "6. SIGNIFICANT PATTERNS: Identify and explain any notable clusters, central nodes, or structural features.\n"
+        "7. STRATEGIC RECOMMENDATIONS: Provide 2 actionable insights derived from these connections and patterns.\n\n"
         "TONE: Formal, objective, and analytical. Use professional language.\n"
-        "FORMAT: Markdown (titles, bolding, lists)."
+        "FORMAT: Markdown (titles, bolding, lists).\n"
+        "DEPTH: Go beyond surface description. Explain what the graph reveals about the underlying data and its relationships."
     )
 
     if USE_LOCAL_GGUF:

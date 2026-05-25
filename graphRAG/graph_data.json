@@ -1,508 +1,166 @@
 {
   "communities": 1,
-  "extraction_method": "Hugging Face (Qwen/Qwen2.5-72B-Instruct)",
+  "extraction_method": "Hugging Face (meta-llama/Meta-Llama-3-8B-Instruct)",
   "links": [
     {
-      "description": "Frank Herbert CREATED Dune",
-      "label": "CREATED",
+      "description": "Harry Potter BORN_IN London",
+      "label": "BORN_IN",
       "source": 1,
-      "source_label": "Frank Herbert",
+      "source_label": "Harry Potter",
       "target": 2,
-      "target_label": "Dune"
+      "target_label": "London"
     },
     {
-      "description": "Dune SETTING Arrakis",
-      "label": "SETTING",
-      "source": 2,
-      "source_label": "Dune",
+      "description": "Harry Potter LIVES_AT Hogwarts School of Witchcraft and Wizardry",
+      "label": "LIVES_AT",
+      "source": 1,
+      "source_label": "Harry Potter",
       "target": 3,
-      "target_label": "Arrakis"
+      "target_label": "Hogwarts School of Witchcraft and Wizardry"
     },
     {
-      "description": "Arrakis PRODUCES Spice",
-      "label": "PRODUCES",
+      "description": "Hogwarts School of Witchcraft and Wizardry HEADQUARTERED_IN Scotland",
+      "label": "HEADQUARTERED_IN",
       "source": 3,
-      "source_label": "Arrakis",
+      "source_label": "Hogwarts School of Witchcraft and Wizardry",
       "target": 4,
-      "target_label": "Spice"
+      "target_label": "Scotland"
     },
     {
-      "description": "Spice ESSENTIAL_FOR Space Navigation",
-      "label": "ESSENTIAL_FOR",
-      "source": 4,
-      "source_label": "Spice",
-      "target": 5,
-      "target_label": "Space Navigation"
-    },
-    {
-      "description": "Spice ESSENTIAL_FOR Life Extension",
-      "label": "ESSENTIAL_FOR",
-      "source": 4,
-      "source_label": "Spice",
-      "target": 6,
-      "target_label": "Life Extension"
-    },
-    {
-      "description": "Spice ESSENTIAL_FOR Enhanced Mental Abilities",
-      "label": "ESSENTIAL_FOR",
-      "source": 4,
-      "source_label": "Spice",
-      "target": 7,
-      "target_label": "Enhanced Mental Abilities"
-    },
-    {
-      "description": "Paul Atreides SON_OF Duke Leto Atreides",
-      "label": "SON_OF",
-      "source": 8,
-      "source_label": "Paul Atreides",
-      "target": 9,
-      "target_label": "Duke Leto Atreides"
-    },
-    {
-      "description": "Paul Atreides SON_OF Lady Jessica",
-      "label": "SON_OF",
-      "source": 8,
-      "source_label": "Paul Atreides",
-      "target": 10,
-      "target_label": "Lady Jessica"
-    },
-    {
-      "description": "Duke Leto Atreides LEADER_OF House Atreides",
-      "label": "LEADER_OF",
-      "source": 9,
-      "source_label": "Duke Leto Atreides",
-      "target": 11,
-      "target_label": "House Atreides"
-    },
-    {
-      "description": "House Atreides CONTROLLED Arrakis",
-      "label": "CONTROLLED",
-      "source": 11,
-      "source_label": "House Atreides",
-      "target": 3,
-      "target_label": "Arrakis"
-    },
-    {
-      "description": "Padishah Emperor AUTHORITY_OVER Feudal Interstellar Empire",
-      "label": "AUTHORITY_OVER",
-      "source": 12,
-      "source_label": "Padishah Emperor",
-      "target": 13,
-      "target_label": "Feudal Interstellar Empire"
-    },
-    {
-      "description": "Baron Vladimir Harkonnen LEADER_OF House Harkonnen",
-      "label": "LEADER_OF",
-      "source": 14,
-      "source_label": "Baron Vladimir Harkonnen",
-      "target": 15,
-      "target_label": "House Harkonnen"
-    },
-    {
-      "description": "House Harkonnen PREVIOUSLY_CONTROLLED Arrakis",
-      "label": "PREVIOUSLY_CONTROLLED",
-      "source": 15,
-      "source_label": "House Harkonnen",
-      "target": 3,
-      "target_label": "Arrakis"
-    },
-    {
-      "description": "House Harkonnen RIVALS House Atreides",
-      "label": "RIVALS",
-      "source": 15,
-      "source_label": "House Harkonnen",
-      "target": 11,
-      "target_label": "House Atreides"
-    },
-    {
-      "description": "Fremen NATIVE_INHABITANTS_OF Arrakis",
-      "label": "NATIVE_INHABITANTS_OF",
-      "source": 16,
-      "source_label": "Fremen",
-      "target": 3,
-      "target_label": "Arrakis"
-    },
-    {
-      "description": "Fremen POSSESSES Ecological Knowledge",
-      "label": "POSSESSES",
-      "source": 16,
-      "source_label": "Fremen",
-      "target": 17,
-      "target_label": "Ecological Knowledge"
-    },
-    {
-      "description": "Fremen CULTURAL_IDENTITY_CENTERED_ON Water Conservation",
-      "label": "CULTURAL_IDENTITY_CENTERED_ON",
-      "source": 16,
-      "source_label": "Fremen",
-      "target": 18,
-      "target_label": "Water Conservation"
-    },
-    {
-      "description": "Paul Atreides INTEGRATES_INTO Fremen Society",
-      "label": "INTEGRATES_INTO",
-      "source": 8,
-      "source_label": "Paul Atreides",
-      "target": 19,
-      "target_label": "Fremen Society"
-    },
-    {
-      "description": "Paul Atreides BECOMES Muad\u2019Dib",
-      "label": "BECOMES",
-      "source": 8,
-      "source_label": "Paul Atreides",
-      "target": 20,
-      "target_label": "Muad\u2019Dib"
-    },
-    {
-      "description": "Muad\u2019Dib MESSENIC_FIGURE Fremen Society",
-      "label": "MESSENIC_FIGURE",
-      "source": 20,
-      "source_label": "Muad\u2019Dib",
-      "target": 19,
-      "target_label": "Fremen Society"
-    },
-    {
-      "description": "Paul Atreides TRAINED_BY Bene Gesserit Sisterhood",
-      "label": "TRAINED_BY",
-      "source": 8,
-      "source_label": "Paul Atreides",
-      "target": 21,
-      "target_label": "Bene Gesserit Sisterhood"
-    },
-    {
-      "description": "Bene Gesserit Sisterhood PURSUED Breeding Program",
-      "label": "PURSUED",
-      "source": 21,
-      "source_label": "Bene Gesserit Sisterhood",
-      "target": 22,
-      "target_label": "Breeding Program"
-    },
-    {
-      "description": "Bene Gesserit Sisterhood GOAL Kwisatz Haderach",
-      "label": "GOAL",
-      "source": 21,
-      "source_label": "Bene Gesserit Sisterhood",
-      "target": 23,
-      "target_label": "Kwisatz Haderach"
-    },
-    {
-      "description": "Paul Atreides FULFILLS_ROLE_OF Kwisatz Haderach",
-      "label": "FULFILLS_ROLE_OF",
-      "source": 8,
-      "source_label": "Paul Atreides",
-      "target": 23,
-      "target_label": "Kwisatz Haderach"
-    },
-    {
-      "description": "Paul Atreides DEVELOPS Prescient Abilities",
-      "label": "DEVELOPS",
-      "source": 8,
-      "source_label": "Paul Atreides",
-      "target": 24,
-      "target_label": "Prescient Abilities"
-    },
-    {
-      "description": "Arrakis DOMINATED_BY Giant Sandworms",
-      "label": "DOMINATED_BY",
+      "description": "Hogwarts School of Witchcraft and Wizardry OWNED_BY Albus Dumbledore",
+      "label": "OWNED_BY",
       "source": 3,
-      "source_label": "Arrakis",
-      "target": 25,
-      "target_label": "Giant Sandworms"
-    },
-    {
-      "description": "Giant Sandworms LIFE_CYCLE_LINKED_TO Spice Production",
-      "label": "LIFE_CYCLE_LINKED_TO",
-      "source": 25,
-      "source_label": "Giant Sandworms",
-      "target": 26,
-      "target_label": "Spice Production"
-    },
-    {
-      "description": "Fremen Society DREAM_OF Transforming Arrakis",
-      "label": "DREAM_OF",
-      "source": 19,
-      "source_label": "Fremen Society",
-      "target": 27,
-      "target_label": "Transforming Arrakis"
-    },
-    {
-      "description": "Bene Gesserit Sisterhood SEEDS Myths and Prophecies",
-      "label": "SEEDS",
-      "source": 21,
-      "source_label": "Bene Gesserit Sisterhood",
-      "target": 28,
-      "target_label": "Myths and Prophecies"
-    },
-    {
-      "description": "Paul Atreides INSPIRES Devotion",
-      "label": "INSPIRES",
-      "source": 8,
-      "source_label": "Paul Atreides",
-      "target": 29,
-      "target_label": "Devotion"
-    },
-    {
-      "description": "Paul Atreides LEADS Fremen Rebellion",
-      "label": "LEADS",
-      "source": 8,
-      "source_label": "Paul Atreides",
-      "target": 30,
-      "target_label": "Fremen Rebellion"
-    },
-    {
-      "description": "Fremen Rebellion AGAINST House Harkonnen",
-      "label": "AGAINST",
-      "source": 30,
-      "source_label": "Fremen Rebellion",
-      "target": 15,
-      "target_label": "House Harkonnen"
-    },
-    {
-      "description": "Fremen Rebellion AGAINST Padishah Emperor",
-      "label": "AGAINST",
-      "source": 30,
-      "source_label": "Fremen Rebellion",
-      "target": 12,
-      "target_label": "Padishah Emperor"
-    },
-    {
-      "description": "Paul Atreides CLAIMS Imperial Throne",
-      "label": "CLAIMS",
-      "source": 8,
-      "source_label": "Paul Atreides",
-      "target": 31,
-      "target_label": "Imperial Throne"
-    },
-    {
-      "description": "Paul Atreides FORESEES Violent Crusade",
-      "label": "FORESEES",
-      "source": 8,
-      "source_label": "Paul Atreides",
-      "target": 32,
-      "target_label": "Violent Crusade"
-    },
-    {
-      "source": 25,
-      "target": 3,
-      "label": "dominate",
-      "description": "Giant Sandworms dominate Arrakis"
-    },
-    {
-      "source": 25,
-      "target": 26,
-      "label": "linked to",
-      "description": "Giant Sandworms linked to spice production"
-    },
-    {
-      "source": 16,
-      "target": 33,
-      "label": "dream of",
-      "description": "Fremen dream of transforming Arrakis into a more habitable world"
-    },
-    {
-      "source": 16,
-      "target": 34,
-      "label": "possess",
-      "description": "Fremen possess deep ecological knowledge"
-    },
-    {
-      "source": 16,
-      "target": 35,
-      "label": "centered on",
-      "description": "Fremen centered on water conservation and survival"
-    },
-    {
-      "source": 26,
+      "source_label": "Hogwarts School of Witchcraft and Wizardry",
       "target": 5,
-      "label": "is essential for",
-      "description": "spice production is essential for space navigation"
+      "target_label": "Albus Dumbledore"
     },
     {
-      "source": 26,
-      "target": 36,
-      "label": "extends",
-      "description": "spice production extends life"
+      "description": "Albus Dumbledore CEO Hogwarts School of Witchcraft and Wizardry",
+      "label": "CEO",
+      "source": 5,
+      "source_label": "Albus Dumbledore",
+      "target": 3,
+      "target_label": "Hogwarts School of Witchcraft and Wizardry"
     },
     {
-      "source": 26,
-      "target": 37,
-      "label": "enhances",
-      "description": "spice production enhances mental abilities"
+      "description": "Harry Potter FRIEND Ron Weasley",
+      "label": "FRIEND",
+      "source": 1,
+      "source_label": "Harry Potter",
+      "target": 6,
+      "target_label": "Ron Weasley"
     },
     {
-      "source": 26,
-      "target": 38,
-      "label": "determines",
-      "description": "spice production determines political and economic power"
+      "description": "Harry Potter FRIEND Hermione Granger",
+      "label": "FRIEND",
+      "source": 1,
+      "source_label": "Harry Potter",
+      "target": 7,
+      "target_label": "Hermione Granger"
     },
     {
-      "source": 26,
-      "target": 39,
-      "label": "is controlled by",
-      "description": "spice production is controlled by noble houses"
+      "description": "Harry Potter FOUNDED Hogwarts School of Witchcraft and Wizardry",
+      "label": "FOUNDED",
+      "source": 1,
+      "source_label": "Harry Potter",
+      "target": 3,
+      "target_label": "Hogwarts School of Witchcraft and Wizardry"
     },
     {
-      "source": 26,
-      "target": 25,
-      "label": "is linked to",
-      "description": "spice production is linked to giant sandworms"
+      "description": "Hogwarts School of Witchcraft and Wizardry FOUNDED_BY Salazar Slytherin",
+      "label": "FOUNDED_BY",
+      "source": 3,
+      "source_label": "Hogwarts School of Witchcraft and Wizardry",
+      "target": 8,
+      "target_label": "Salazar Slytherin"
     },
     {
-      "source": 26,
-      "target": 40,
-      "label": "is used strategically by",
-      "description": "spice production is used strategically by Paul"
+      "description": "Hogwarts School of Witchcraft and Wizardry SUBSIDIARY_OF Ministry of Magic",
+      "label": "SUBSIDIARY_OF",
+      "source": 3,
+      "source_label": "Hogwarts School of Witchcraft and Wizardry",
+      "target": 9,
+      "target_label": "Ministry of Magic"
     },
     {
-      "source": 26,
-      "target": 41,
-      "label": "gives leverage over",
-      "description": "spice production gives leverage over entire empire"
+      "description": "Ministry of Magic HEADQUARTERED_IN London",
+      "label": "HEADQUARTERED_IN",
+      "source": 9,
+      "source_label": "Ministry of Magic",
+      "target": 2,
+      "target_label": "London"
     },
     {
-      "source": 26,
-      "target": 42,
-      "label": "is part of",
-      "description": "spice production is part of Fremen's environmental project"
+      "description": "Ministry of Magic OWNED_BY British Government",
+      "label": "OWNED_BY",
+      "source": 9,
+      "source_label": "Ministry of Magic",
+      "target": 10,
+      "target_label": "British Government"
     },
     {
-      "source": 16,
-      "target": 43,
-      "label": "are",
-      "description": "Fremen are native inhabitants of Arrakis"
+      "description": "Harry Potter MURDERED_BY Lord Voldemort",
+      "label": "MURDERED_BY",
+      "source": 1,
+      "source_label": "Harry Potter",
+      "target": 11,
+      "target_label": "Lord Voldemort"
     },
     {
-      "source": 16,
-      "target": 44,
-      "label": "have",
-      "description": "Fremen have strong cultural identity centered on water conservation and survival"
+      "description": "Lord Voldemort BORN_IN England",
+      "label": "BORN_IN",
+      "source": 11,
+      "source_label": "Lord Voldemort",
+      "target": 12,
+      "target_label": "England"
     },
     {
-      "source": 45,
-      "target": 19,
-      "label": "integrate into",
-      "description": "Paul and Jessica integrate into Fremen society"
+      "description": "Lord Voldemort POWERED_BY Horcruxes",
+      "label": "POWERED_BY",
+      "source": 11,
+      "source_label": "Lord Voldemort",
+      "target": 13,
+      "target_label": "Horcruxes"
     },
     {
-      "source": 45,
-      "target": 46,
-      "label": "earn",
-      "description": "Paul and Jessica earn Fremen's trust"
+      "description": "Horcruxes CREATED_BY Lord Voldemort",
+      "label": "CREATED_BY",
+      "source": 13,
+      "source_label": "Horcruxes",
+      "target": 11,
+      "target_label": "Lord Voldemort"
     },
     {
-      "source": 45,
-      "target": 47,
-      "label": "learn",
-      "description": "Paul and Jessica learn Fremen ways"
+      "description": "Harry Potter DEFEATED Lord Voldemort",
+      "label": "DEFEATED",
+      "source": 1,
+      "source_label": "Harry Potter",
+      "target": 11,
+      "target_label": "Lord Voldemort"
     },
     {
-      "source": 45,
-      "target": 48,
-      "label": "leads",
-      "description": "Paul and Jessica leads Fremen in rebellion"
+      "description": "Lily Potter MURDERED_BY Lord Voldemort",
+      "label": "MURDERED_BY",
+      "source": 14,
+      "source_label": "Lily Potter",
+      "target": 11,
+      "target_label": "Lord Voldemort"
     },
     {
-      "source": 19,
-      "target": 49,
-      "label": "rebel against",
-      "description": "Fremen society rebel against House Harkonnen and the Emperor"
+      "description": "Lord Voldemort ASSOCIATED_WITH Dark Arts",
+      "label": "ASSOCIATED_WITH",
+      "source": 11,
+      "source_label": "Lord Voldemort",
+      "target": 15,
+      "target_label": "Dark Arts"
     },
     {
-      "source": 19,
-      "target": 50,
-      "label": "use",
-      "description": "Fremen society use desert environment strategically"
-    },
-    {
-      "source": 19,
-      "target": 26,
-      "label": "control",
-      "description": "Fremen society control spice production"
-    },
-    {
-      "source": 19,
-      "target": 51,
-      "label": "dream of",
-      "description": "Fremen society dream of transforming the desert into a more habitable world"
-    },
-    {
-      "source": 52,
-      "target": 53,
-      "label": "seed",
-      "description": "Bene Gesserit seed Fremen culture with myths and prophecies"
-    },
-    {
-      "source": 54,
-      "target": 55,
-      "label": "is facilitated by",
-      "description": "Paul\u2019s rise is facilitated by Fremen beliefs planted by Bene Gesserit"
-    },
-    {
-      "source": 56,
-      "target": 57,
-      "label": "inspires",
-      "description": "Paul\u2019s leadership inspires devotion among Fremen"
-    },
-    {
-      "source": 56,
-      "target": 58,
-      "label": "leads to",
-      "description": "Paul\u2019s leadership leads to unintended consequences among Fremen"
-    },
-    {
-      "source": 56,
-      "target": 30,
-      "label": "leads to",
-      "description": "Paul\u2019s leadership leads to Fremen rebellion"
-    },
-    {
-      "source": 56,
-      "target": 59,
-      "label": "gains",
-      "description": "Paul\u2019s leadership gains leverage over the entire empire"
-    },
-    {
-      "source": 56,
-      "target": 60,
-      "label": "results in",
-      "description": "Paul\u2019s leadership results in claiming the imperial throne"
-    },
-    {
-      "source": 56,
-      "target": 32,
-      "label": "triggers",
-      "description": "Paul\u2019s leadership triggers violent crusade"
-    },
-    {
-      "source": 56,
-      "target": 29,
-      "label": "inspires",
-      "description": "Paul\u2019s leadership inspires devotion"
-    },
-    {
-      "source": 56,
-      "target": 61,
-      "label": "causes",
-      "description": "Paul\u2019s leadership causes unintended consequences"
-    },
-    {
-      "source": 56,
-      "target": 62,
-      "label": "is influenced by",
-      "description": "Paul\u2019s leadership is influenced by Bene Gesserit training"
-    },
-    {
-      "source": 56,
-      "target": 63,
-      "label": "is shaped by",
-      "description": "Paul\u2019s leadership is shaped by Fremen integration"
-    },
-    {
-      "source": 56,
-      "target": 64,
-      "label": "is facilitated by",
-      "description": "Paul\u2019s leadership is facilitated by planted beliefs"
+      "description": "Harry Potter ASSOCIATED_WITH Wizarding World",
+      "label": "ASSOCIATED_WITH",
+      "source": 1,
+      "source_label": "Harry Potter",
+      "target": 16,
+      "target_label": "Wizarding World"
     }
   ],
   "nodes": [
@@ -510,520 +168,115 @@
       "aliases": [],
       "description": "A person mentioned in the text.",
       "id": 1,
-      "label": "Frank Herbert",
+      "label": "Harry Potter",
       "type": "PERSON"
     },
     {
       "aliases": [],
-      "description": "A person mentioned in the text.",
+      "description": "A location mentioned in the text.",
       "id": 2,
-      "label": "Dune",
-      "type": "PERSON"
+      "label": "London",
+      "type": "LOCATION"
     },
     {
       "aliases": [],
-      "description": "A person mentioned in the text.",
+      "description": "A organization mentioned in the text.",
       "id": 3,
-      "label": "Arrakis",
-      "type": "PERSON"
+      "label": "Hogwarts School of Witchcraft and Wizardry",
+      "type": "ORGANIZATION"
     },
     {
       "aliases": [],
       "description": "A person mentioned in the text.",
       "id": 4,
-      "label": "Spice",
+      "label": "Scotland",
       "type": "PERSON"
     },
     {
       "aliases": [],
       "description": "A person mentioned in the text.",
       "id": 5,
-      "label": "Space Navigation",
+      "label": "Albus Dumbledore",
       "type": "PERSON"
     },
     {
       "aliases": [],
       "description": "A person mentioned in the text.",
       "id": 6,
-      "label": "Life Extension",
+      "label": "Ron Weasley",
       "type": "PERSON"
     },
     {
       "aliases": [],
       "description": "A person mentioned in the text.",
       "id": 7,
-      "label": "Enhanced Mental Abilities",
+      "label": "Hermione Granger",
       "type": "PERSON"
     },
     {
       "aliases": [],
       "description": "A person mentioned in the text.",
       "id": 8,
-      "label": "Paul Atreides",
-      "type": "PERSON"
-    },
-    {
-      "aliases": [],
-      "description": "A person mentioned in the text.",
-      "id": 9,
-      "label": "Duke Leto Atreides",
-      "type": "PERSON"
-    },
-    {
-      "aliases": [],
-      "description": "A person mentioned in the text.",
-      "id": 10,
-      "label": "Lady Jessica",
+      "label": "Salazar Slytherin",
       "type": "PERSON"
     },
     {
       "aliases": [],
       "description": "A government mentioned in the text.",
-      "id": 11,
-      "label": "House Atreides",
+      "id": 9,
+      "label": "Ministry of Magic",
       "type": "GOVERNMENT"
+    },
+    {
+      "aliases": [],
+      "description": "A organization mentioned in the text.",
+      "id": 10,
+      "label": "British Government",
+      "type": "ORGANIZATION"
+    },
+    {
+      "aliases": [],
+      "description": "A person mentioned in the text.",
+      "id": 11,
+      "label": "Lord Voldemort",
+      "type": "PERSON"
     },
     {
       "aliases": [],
       "description": "A person mentioned in the text.",
       "id": 12,
-      "label": "Padishah Emperor",
+      "label": "England",
       "type": "PERSON"
     },
     {
       "aliases": [],
       "description": "A person mentioned in the text.",
       "id": 13,
-      "label": "Feudal Interstellar Empire",
+      "label": "Horcruxes",
       "type": "PERSON"
     },
     {
       "aliases": [],
       "description": "A person mentioned in the text.",
       "id": 14,
-      "label": "Baron Vladimir Harkonnen",
+      "label": "Lily Potter",
       "type": "PERSON"
     },
     {
       "aliases": [],
-      "description": "A government mentioned in the text.",
+      "description": "A person mentioned in the text.",
       "id": 15,
-      "label": "House Harkonnen",
-      "type": "GOVERNMENT"
+      "label": "Dark Arts",
+      "type": "PERSON"
     },
     {
       "aliases": [],
       "description": "A person mentioned in the text.",
       "id": 16,
-      "label": "Fremen",
+      "label": "Wizarding World",
       "type": "PERSON"
-    },
-    {
-      "aliases": [],
-      "description": "A person mentioned in the text.",
-      "id": 17,
-      "label": "Ecological Knowledge",
-      "type": "PERSON"
-    },
-    {
-      "aliases": [],
-      "description": "A person mentioned in the text.",
-      "id": 18,
-      "label": "Water Conservation",
-      "type": "PERSON"
-    },
-    {
-      "aliases": [
-        "Fremen"
-      ],
-      "description": "A person mentioned in the text.",
-      "id": 19,
-      "label": "Fremen Society",
-      "type": "PERSON"
-    },
-    {
-      "aliases": [],
-      "description": "A person mentioned in the text.",
-      "id": 20,
-      "label": "Muad\u2019Dib",
-      "type": "PERSON"
-    },
-    {
-      "aliases": [],
-      "description": "A person mentioned in the text.",
-      "id": 21,
-      "label": "Bene Gesserit Sisterhood",
-      "type": "PERSON"
-    },
-    {
-      "aliases": [],
-      "description": "A person mentioned in the text.",
-      "id": 22,
-      "label": "Breeding Program",
-      "type": "PERSON"
-    },
-    {
-      "aliases": [],
-      "description": "A person mentioned in the text.",
-      "id": 23,
-      "label": "Kwisatz Haderach",
-      "type": "PERSON"
-    },
-    {
-      "aliases": [],
-      "description": "A person mentioned in the text.",
-      "id": 24,
-      "label": "Prescient Abilities",
-      "type": "PERSON"
-    },
-    {
-      "aliases": [],
-      "description": "A person mentioned in the text.",
-      "id": 25,
-      "label": "Giant Sandworms",
-      "type": "PERSON"
-    },
-    {
-      "aliases": [],
-      "description": "A person mentioned in the text.",
-      "id": 26,
-      "label": "Spice Production",
-      "type": "PERSON"
-    },
-    {
-      "aliases": [],
-      "description": "A person mentioned in the text.",
-      "id": 27,
-      "label": "Transforming Arrakis",
-      "type": "PERSON"
-    },
-    {
-      "aliases": [],
-      "description": "A concept mentioned in the text.",
-      "id": 28,
-      "label": "Myths and Prophecies",
-      "type": "CONCEPT"
-    },
-    {
-      "aliases": [],
-      "description": "A person mentioned in the text.",
-      "id": 29,
-      "label": "Devotion",
-      "type": "PERSON"
-    },
-    {
-      "aliases": [],
-      "description": "A person mentioned in the text.",
-      "id": 30,
-      "label": "Fremen Rebellion",
-      "type": "PERSON"
-    },
-    {
-      "aliases": [],
-      "description": "A person mentioned in the text.",
-      "id": 31,
-      "label": "Imperial Throne",
-      "type": "PERSON"
-    },
-    {
-      "aliases": [],
-      "description": "A person mentioned in the text.",
-      "id": 32,
-      "label": "Violent Crusade",
-      "type": "PERSON"
-    },
-    {
-      "aliases": [],
-      "description": "A concept mentioned in the text.",
-      "id": 33,
-      "label": "transforming Arrakis into a more habitable world",
-      "type": "CONCEPT",
-      "x": 1491.334197872179,
-      "y": 109.23387157579494
-    },
-    {
-      "aliases": [],
-      "description": "A technology mentioned in the text.",
-      "id": 34,
-      "label": "deep ecological knowledge",
-      "type": "TECHNOLOGY",
-      "x": 1502.1336623639468,
-      "y": 123.35375270799341
-    },
-    {
-      "aliases": [],
-      "description": "A concept mentioned in the text.",
-      "id": 35,
-      "label": "water conservation and survival",
-      "type": "CONCEPT",
-      "x": 1553.1212202981355,
-      "y": 122.73424131383189
-    },
-    {
-      "aliases": [],
-      "description": "A concept mentioned in the text.",
-      "id": 36,
-      "label": "life",
-      "type": "CONCEPT",
-      "x": 1241.428556971783,
-      "y": -618.9151795870628
-    },
-    {
-      "aliases": [],
-      "description": "A concept mentioned in the text.",
-      "id": 37,
-      "label": "mental abilities",
-      "type": "CONCEPT",
-      "x": 1261.2959468995628,
-      "y": -655.9903414945037
-    },
-    {
-      "aliases": [],
-      "description": "A concept mentioned in the text.",
-      "id": 38,
-      "label": "political and economic power",
-      "type": "CONCEPT",
-      "x": 1311.3992171654645,
-      "y": -639.6451170309366
-    },
-    {
-      "aliases": [],
-      "description": "A concept mentioned in the text.",
-      "id": 39,
-      "label": "noble houses",
-      "type": "CONCEPT",
-      "x": 1304.2104627879569,
-      "y": -618.6816219805253
-    },
-    {
-      "aliases": [],
-      "description": "A person mentioned in the text.",
-      "id": 40,
-      "label": "Paul",
-      "type": "PERSON",
-      "x": 1308.2648617746968,
-      "y": -595.9988073565976
-    },
-    {
-      "aliases": [
-        "the entire empire"
-      ],
-      "description": "A concept mentioned in the text.",
-      "id": 41,
-      "label": "entire empire",
-      "type": "CONCEPT",
-      "x": 1283.7983343990747,
-      "y": -610.6590503373545
-    },
-    {
-      "aliases": [],
-      "description": "A concept mentioned in the text.",
-      "id": 42,
-      "label": "Fremen's environmental project",
-      "type": "CONCEPT",
-      "x": 1295.3886434906608,
-      "y": -679.9477177578184
-    },
-    {
-      "aliases": [],
-      "description": "A concept mentioned in the text.",
-      "id": 43,
-      "label": "native inhabitants of Arrakis",
-      "type": "CONCEPT",
-      "x": 1104.6108851979993,
-      "y": 1163.8677615506683
-    },
-    {
-      "aliases": [],
-      "description": "A concept mentioned in the text.",
-      "id": 44,
-      "label": "strong cultural identity centered on water conservation and survival",
-      "type": "CONCEPT",
-      "x": 1141.6521580250492,
-      "y": 1085.8938974525647
-    },
-    {
-      "aliases": [
-        "Paul"
-      ],
-      "description": "A concept mentioned in the text.",
-      "id": 45,
-      "label": "Paul and Jessica",
-      "type": "CONCEPT",
-      "x": 1122.7885824868858,
-      "y": 1098.0284200753838
-    },
-    {
-      "aliases": [],
-      "description": "A concept mentioned in the text.",
-      "id": 46,
-      "label": "Fremen's trust",
-      "type": "CONCEPT",
-      "x": 1167.0054567397617,
-      "y": 1098.7119317734819
-    },
-    {
-      "aliases": [],
-      "description": "A concept mentioned in the text.",
-      "id": 47,
-      "label": "Fremen ways",
-      "type": "CONCEPT",
-      "x": 1185.509851230852,
-      "y": 1150.396881823537
-    },
-    {
-      "aliases": [],
-      "description": "A concept mentioned in the text.",
-      "id": 48,
-      "label": "Fremen in rebellion",
-      "type": "CONCEPT",
-      "x": 1157.0343642337814,
-      "y": 1088.041564032447
-    },
-    {
-      "aliases": [],
-      "description": "A government mentioned in the text.",
-      "id": 49,
-      "label": "House Harkonnen and the Emperor",
-      "type": "GOVERNMENT",
-      "x": 1171.995309676322,
-      "y": 1082.5188515344546
-    },
-    {
-      "aliases": [],
-      "description": "A concept mentioned in the text.",
-      "id": 50,
-      "label": "desert environment ",
-      "type": "CONCEPT",
-      "x": 1188.4636693186264,
-      "y": 1139.7257824020014
-    },
-    {
-      "aliases": [],
-      "description": "A concept mentioned in the text.",
-      "id": 51,
-      "label": "transforming the desert into a more habitable world",
-      "type": "CONCEPT",
-      "x": 1148.1106431130654,
-      "y": 1126.079584930414
-    },
-    {
-      "aliases": [],
-      "description": "A person mentioned in the text.",
-      "id": 52,
-      "label": "Bene Gesserit",
-      "type": "PERSON",
-      "x": 1182.2757956797975,
-      "y": 1119.367907841981
-    },
-    {
-      "aliases": [],
-      "description": "A concept mentioned in the text.",
-      "id": 53,
-      "label": "Fremen culture with myths and prophecies",
-      "type": "CONCEPT",
-      "x": 1191.2500052788891,
-      "y": 1143.7872495375427
-    },
-    {
-      "aliases": [],
-      "description": "A concept mentioned in the text.",
-      "id": 54,
-      "label": "Paul\u2019s rise",
-      "type": "CONCEPT",
-      "x": 1151.899679529152,
-      "y": 1095.96900616341
-    },
-    {
-      "aliases": [],
-      "description": "A concept mentioned in the text.",
-      "id": 55,
-      "label": "Fremen beliefs planted by Bene Gesserit",
-      "type": "CONCEPT",
-      "x": 1157.416105980475,
-      "y": 1108.990669523448
-    },
-    {
-      "aliases": [],
-      "description": "A concept mentioned in the text.",
-      "id": 56,
-      "label": "Paul\u2019s leadership",
-      "type": "CONCEPT",
-      "x": 1104.4461439475724,
-      "y": 1138.7264482293212
-    },
-    {
-      "aliases": [],
-      "description": "A concept mentioned in the text.",
-      "id": 57,
-      "label": "devotion among Fremen",
-      "type": "CONCEPT",
-      "x": 1169.4885594502857,
-      "y": 1119.6401191898217
-    },
-    {
-      "aliases": [],
-      "description": "A concept mentioned in the text.",
-      "id": 58,
-      "label": "unintended consequences among Fremen",
-      "type": "CONCEPT",
-      "x": 1111.10741558487,
-      "y": 1121.6877821119335
-    },
-    {
-      "aliases": [],
-      "description": "A concept mentioned in the text.",
-      "id": 59,
-      "label": "leverage over the entire empire",
-      "type": "CONCEPT",
-      "x": 1557.327941300037,
-      "y": -1005.2197485108696
-    },
-    {
-      "aliases": [],
-      "description": "A concept mentioned in the text.",
-      "id": 60,
-      "label": "claiming the imperial throne",
-      "type": "CONCEPT",
-      "x": 1596.4642473872461,
-      "y": -1005.4917051311385
-    },
-    {
-      "aliases": [],
-      "description": "A concept mentioned in the text.",
-      "id": 61,
-      "label": "unintended consequences",
-      "type": "CONCEPT",
-      "x": 1554.2141519276577,
-      "y": -1053.5252052476108
-    },
-    {
-      "aliases": [],
-      "description": "A concept mentioned in the text.",
-      "id": 62,
-      "label": "Bene Gesserit training",
-      "type": "CONCEPT",
-      "x": 1534.0957324121273,
-      "y": -1079.11152501196
-    },
-    {
-      "aliases": [],
-      "description": "A concept mentioned in the text.",
-      "id": 63,
-      "label": "Fremen integration",
-      "type": "CONCEPT",
-      "x": 1542.5544819505458,
-      "y": -1046.6550154269125
-    },
-    {
-      "aliases": [],
-      "description": "A concept mentioned in the text.",
-      "id": 64,
-      "label": "planted beliefs",
-      "type": "CONCEPT",
-      "x": 1514.9298077198587,
-      "y": -1044.1976313325033
     }
   ],
-  "search_augmented": false
+  "search_augmented": true,
+  "title": "GRAPH"
 }
