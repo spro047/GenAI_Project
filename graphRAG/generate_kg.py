@@ -15,11 +15,14 @@ import argparse
 import json
 import requests
 import re
-from collections import defaultdict
 import chromadb
-from chromadb.utils import embedding_functions
 from serpapi import GoogleSearch
 from dotenv import load_dotenv
+
+import logging
+
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s [%(levelname)s] %(message)s')
+logger = logging.getLogger(__name__)
 
 # Load environment variables (override=True ensures fresh .env values are always used)
 load_dotenv(override=True)
@@ -31,9 +34,9 @@ SERPAPI_KEY = os.getenv("SERPAPI_KEY", "")
 
 # Startup status
 if SERPAPI_KEY:
-    print(f"[OK] SerpAPI ACTIVE - key loaded ({SERPAPI_KEY[:8]}...)")
+    logger.info(f"SerpAPI ACTIVE - key loaded ({SERPAPI_KEY[:8]}...)")
 else:
-    print("[WARN] SerpAPI DISABLED - SERPAPI_KEY not found in .env")
+    logger.warning("SerpAPI DISABLED - SERPAPI_KEY not found in .env")
 # Gemini settings
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
@@ -62,9 +65,9 @@ try:
         name="knowledge_graph_chunks",
         metadata={"hnsw:space": "cosine"}
     )
-    print(f"Vector Database initialized at: {VDB_PATH}")
+    logger.info(f"Vector Database initialized at: {VDB_PATH}")
 except Exception as e:
-    print(f"Warning: Failed to initialize Vector Database: {e}")
+    logger.warning(f"Failed to initialize Vector Database: {e}")
     vdb_collection = None
 
 
@@ -95,7 +98,7 @@ def call_local_llm(text: str) -> str:
             return data['choices'][0]['message']['content']
         return str(data)
     except Exception as e:
-        print(f"Local LLM call failed: {e}")
+        logger.error(f"Local LLM call failed: {e}")
         return ""
 
 
@@ -107,17 +110,17 @@ def call_local_gguf(text: str) -> str:
     global _LOCAL_MODEL_INSTANCE
     
     if not LOCAL_GGUF_MODEL or not os.path.exists(LOCAL_GGUF_MODEL):
-        print(f"Local GGUF model path not found: {LOCAL_GGUF_MODEL}")
+        logger.error(f"Local GGUF model path not found: {LOCAL_GGUF_MODEL}")
         return ""
     
     try:
         from llama_cpp import Llama
     except ImportError:
-        print("llama-cpp-python not installed. Cannot use local GGUF model.")
+        logger.warning("llama-cpp-python not installed. Cannot use local GGUF model.")
         return ""
     
     if _LOCAL_MODEL_INSTANCE is None:
-        print(f"Loading local GGUF model: {LOCAL_GGUF_MODEL}...")
+        logger.info(f"Loading local GGUF model: {LOCAL_GGUF_MODEL}...")
         try:
             _LOCAL_MODEL_INSTANCE = Llama(
                 model_path=LOCAL_GGUF_MODEL,
@@ -126,7 +129,7 @@ def call_local_gguf(text: str) -> str:
                 verbose=False
             )
         except Exception as e:
-            print(f"Failed to load GGUF model: {e}")
+            logger.error(f"Failed to load GGUF model: {e}")
             return ""
 
     prompt = (
@@ -145,7 +148,7 @@ def call_local_gguf(text: str) -> str:
         )
         return output["choices"][0]["text"].strip()
     except Exception as e:
-        print(f"Local GGUF inference failed: {e}")
+        logger.error(f"Local GGUF inference failed: {e}")
         return ""
 
 
@@ -155,10 +158,10 @@ def search_serpapi(query: str) -> str:
     Enriches the knowledge graph with external context.
     """
     if not SERPAPI_KEY:
-        print("DEBUG: SERPAPI_KEY not found in environment.")
+        logger.debug("SERPAPI_KEY not found in environment.")
         return ""
     
-    print(f"DEBUG: Searching SerpAPI for: {query}...")
+    logger.debug(f"Searching SerpAPI for: {query}...")
     try:
         search = GoogleSearch({
             "q": query,
@@ -180,7 +183,7 @@ def search_serpapi(query: str) -> str:
                 
         return "\n".join(snippets)
     except Exception as e:
-        print(f"SerpAPI search failed: {e}")
+        logger.error(f"SerpAPI search failed: {e}")
         return ""
 
 
@@ -849,44 +852,44 @@ def generate_graph_from_text(text: str) -> dict:
     augmented_text = get_augmented_text(text)
     if len(augmented_text) > len(text):
         search_augmented = True
-        print("Text augmented with SerpAPI knowledge.")
+        logger.info("Text augmented with SerpAPI knowledge.")
     
     # 2. Extract triples using LLM (with fallback to heuristic)
     if USE_LOCAL_GGUF:
-        print(f"Using local GGUF model: {LOCAL_GGUF_MODEL}...")
+        logger.info(f"Using local GGUF model: {LOCAL_GGUF_MODEL}...")
         out = call_local_gguf(augmented_text)
         triples = parse_triples_from_text(out)
         if triples: extraction_method = f"Local GGUF ({LOCAL_GGUF_MODEL})"
     
     if not triples and USE_LOCAL_LLM:
-        print(f"Using Local LLM at {LOCAL_LLM_URL}...")
+        logger.info(f"Using Local LLM at {LOCAL_LLM_URL}...")
         out = call_local_llm(augmented_text)
         triples = parse_triples_from_text(out)
         if triples: extraction_method = "Local LLM"
     
     if not triples and HF_API and HF_MODEL:
         try:
-            print(f"Using Hugging Face model: {HF_MODEL}...")
+            logger.info(f"Using Hugging Face model: {HF_MODEL}...")
             out = call_hf_inference(augmented_text, HF_MODEL, HF_API)
             
             triples = parse_triples_from_text(out)
             if triples: 
                 extraction_method = f"Hugging Face ({HF_MODEL})"
             else:
-                print("Model output could not be parsed as triples, falling back to heuristic.")
+                logger.warning("Model output could not be parsed as triples, falling back to heuristic.")
         except Exception as e:
             # Check if it's a model not supported error to try fallback
             if "model_not_supported" in str(e) and HF_MODEL != FALLBACK_HF_MODEL:
                 try:
-                    print(f"Model '{HF_MODEL}' not supported. Trying fallback model '{FALLBACK_HF_MODEL}'...")
+                    logger.warning(f"Model '{HF_MODEL}' not supported. Trying fallback model '{FALLBACK_HF_MODEL}'...")
                     out = call_hf_inference(augmented_text, FALLBACK_HF_MODEL, HF_API)
                     triples = parse_triples_from_text(out)
                     if not triples:
-                        print("Fallback model output could not be parsed as triples, falling back to heuristic.")
+                        logger.warning("Fallback model output could not be parsed as triples, falling back to heuristic.")
                 except Exception as e2:
-                    print(f"Fallback model call failed: {e2}. Falling back to heuristic.")
+                    logger.error(f"Fallback model call failed: {e2}. Falling back to heuristic.")
             else:
-                print(f"Hugging Face call failed: {e}. Falling back to heuristic.")
+                logger.error(f"Hugging Face call failed: {e}. Falling back to heuristic.")
 
     if not triples:
         triples = fallback_extract(text)
@@ -913,7 +916,6 @@ def generate_graph_title(text: str) -> str:
     prompt = f"Provide a single-word title (one word only) that summarizes the main topic or story of the text below. Return ONLY the single word. No punctuation, no brackets, no quotes.\n\nText: {text[:500]}"
     
     try:
-        import re
         out = ""
         if USE_LOCAL_GGUF:
             out = call_local_gguf(prompt)
@@ -931,7 +933,7 @@ def generate_graph_title(text: str) -> str:
         if clean_word:
             return clean_word.upper()[:12]
     except Exception as e:
-        print(f"Title generation failed: {e}")
+        logger.error(f"Title generation failed: {e}")
     
     return "GRAPH"
 
@@ -947,9 +949,9 @@ def describe_node(entity: str, context_text: str) -> str:
             results = vdb_collection.query(query_texts=[entity], n_results=3)
             if results and results.get('documents') and results['documents'][0]:
                 context_text = "\n\n".join(results['documents'][0])
-                print(f"DEBUG: describe_node using VDB context for '{entity}'")
+                logger.debug(f"describe_node using VDB context for '{entity}'")
         except Exception as e:
-            print(f"DEBUG: VDB query for describe_node failed: {e}")
+            logger.debug(f"VDB query for describe_node failed: {e}")
 
     # Build prompt: context-aware or world-knowledge fallback
     if context_text and len(context_text.strip()) >= 10:
@@ -991,7 +993,7 @@ def describe_node(entity: str, context_text: str) -> str:
                     result = result[len(prefix):].strip()
             return result if result else "No detailed description available."
         except Exception as e:
-            print(f"Describe node HF call failed: {e}")
+            logger.error(f"Describe node HF call failed: {e}")
             return "No detailed description available."
 
     return "No detailed description available."
@@ -1002,7 +1004,7 @@ def drill_down_node(entity_name: str, context_text: str = "") -> dict:
     Performs a deep dive into a specific entity by querying the VDB
     and/or using the provided context text, and extracting secondary relationships.
     """
-    print(f"DEBUG: Performing Drill-Down for: {entity_name}...")
+    logger.debug(f"Performing Drill-Down for: {entity_name}...")
     
     context_chunks = []
     
@@ -1031,13 +1033,13 @@ def drill_down_node(entity_name: str, context_text: str = "") -> dict:
                     if doc not in context_chunks:
                         context_chunks.append(doc)
         except Exception as e:
-            print(f"DEBUG: VDB query failed in drill_down_node: {e}")
+            logger.debug(f"VDB query failed in drill_down_node: {e}")
             
     # Combine chunks
     context = "\n\n".join(context_chunks).strip()
     
     if not context:
-        print(f"DEBUG: No context found (either in text or VDB) for '{entity_name}'")
+        logger.debug(f"No context found (either in text or VDB) for '{entity_name}'")
         return {"nodes": [], "links": []}
 
     # 3. Specialized prompt for Drill-Down
@@ -1065,12 +1067,13 @@ def drill_down_node(entity_name: str, context_text: str = "") -> dict:
             out = call_hf_inference_with_prompt(prompt, HF_MODEL, HF_API)
             triples = parse_triples_from_text(out)
         except Exception as e:
-            print(f"HF Inference failed for drill-down: {e}")
+            logger.error(f"HF Inference failed for drill-down: {e}")
             # Try fallback
             try:
                 out = call_hf_inference_with_prompt(prompt, FALLBACK_HF_MODEL, HF_API)
                 triples = parse_triples_from_text(out)
-            except: pass
+            except Exception:
+                logger.error("Fallback model also failed for drill-down.", exc_info=True)
 
     if not triples:
         # Heuristic fallback if LLM fails
@@ -1236,9 +1239,9 @@ def index_text_in_vdb(text: str):
             documents=paragraphs,
             ids=ids
         )
-        print(f"Indexed {len(paragraphs)} chunks in Vector Database.")
+        logger.info(f"Indexed {len(paragraphs)} chunks in Vector Database.")
     except Exception as e:
-        print(f"Error indexing in Vector Database: {e}")
+        logger.error(f"Error indexing in Vector Database: {e}")
 
 def delete_text_from_vdb(text: str):
     """Deletes chunks associated with the text from the Vector Database."""
@@ -1256,9 +1259,9 @@ def delete_text_from_vdb(text: str):
 
         ids = [f"chunk_{re.sub(r'[^a-zA-Z0-9]', '', text[:10])}_{i}" for i in range(len(paragraphs))]
         vdb_collection.delete(ids=ids)
-        print(f"Deleted {len(paragraphs)} chunks from Vector Database.")
+        logger.info(f"Deleted {len(paragraphs)} chunks from Vector Database.")
     except Exception as e:
-        print(f"Error deleting from Vector Database: {e}")
+        logger.error(f"Error deleting from Vector Database: {e}")
 
 
 def query_graph_rag(query: str, nodes: list, links: list, history: list = None) -> str:
@@ -1319,7 +1322,7 @@ def query_graph_rag(query: str, nodes: list, links: list, history: list = None) 
             )
             return response.choices[0].message.content.strip()
         except Exception as e:
-            print(f"GraphRAG HF call failed: {e}")
+            logger.error(f"GraphRAG HF call failed: {e}")
             
     return "I found the facts in the graph, but I'm having trouble connecting to the AI to generate a response."
 
@@ -1426,7 +1429,7 @@ def generate_graph_report(nodes: list, links: list, communities: int) -> str:
             )
             return response.choices[0].message.content.strip()
         except Exception as e:
-            print(f"Report generation HF call failed: {e}")
+            logger.error(f"Report generation HF call failed: {e}")
             
     return "The report could not be generated at this time. Please ensure your LLM configuration is correct."
 
@@ -1509,7 +1512,7 @@ def main():
     args = parser.parse_args()
 
     if not args.text and not args.file:
-        print("Provide --text or --file input. Exiting.")
+        logger.error("Provide --text or --file input. Exiting.")
         sys.exit(1)
 
     text = ""
@@ -1518,18 +1521,18 @@ def main():
             with open(args.file, "r", encoding="utf8") as f:
                 text = f.read()
         except Exception as e:
-            print(f"Error reading file: {e}")
+            logger.error(f"Error reading file: {e}")
             sys.exit(1)
     else:
         text = args.text
 
     if not text.strip():
-        print("Error: Input text is empty.")
+        logger.error("Input text is empty.")
         sys.exit(1)
 
     # Use the same unified generation logic as the web app
     # This handles fallbacks, SerpAPI, and community detection
-    print(f"Processing knowledge graph extraction (Text length: {len(text)})...")
+    logger.info(f"Processing knowledge graph extraction (Text length: {len(text)})...")
     result = generate_graph_from_text(text)
     
     # Save the result to the specified output file
@@ -1537,11 +1540,11 @@ def main():
         with open(args.out, "w", encoding="utf8") as f:
             json.dump(result, f, indent=2, ensure_ascii=False)
         
-        print(f"Success! Wrote graph to {args.out}")
-        print(f"Metrics: {len(result['nodes'])} nodes, {len(result['links'])} links, {result['communities']} communities.")
-        print(f"Extraction Method: {result['extraction_method']}")
+        logger.info(f"Success! Wrote graph to {args.out}")
+        logger.info(f"Metrics: {len(result['nodes'])} nodes, {len(result['links'])} links, {result['communities']} communities.")
+        logger.info(f"Extraction Method: {result['extraction_method']}")
     except Exception as e:
-        print(f"Error saving graph data: {e}")
+        logger.error(f"Error saving graph data: {e}")
         sys.exit(1)
 
 

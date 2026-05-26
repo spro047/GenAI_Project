@@ -7,10 +7,9 @@ Provides an API endpoint to generate knowledge graphs from text input.
 """
 import os
 import json
-import argparse
 import tempfile
 from datetime import datetime
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, Response
 from fpdf import FPDF
 from generate_kg import (
     generate_graph_from_text, 
@@ -193,19 +192,20 @@ def export_pdf():
         pdf.multi_cell(0, 7, clean_text)
         
         # Create a temporary file to store the PDF before sending
-        # We use NamedTemporaryFile and close it so fpdf can write to it on Windows
         with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
             tmp_path = tmp.name
             
         try:
             pdf.output(tmp_path)
-            directory = os.path.dirname(tmp_path)
-            filename = os.path.basename(tmp_path)
-            # Send file to user for download
-            return send_from_directory(directory, filename, as_attachment=True, download_name="Knowledge_Graph_Report.pdf")
+            with open(tmp_path, 'rb') as f:
+                pdf_bytes = f.read()
         finally:
-            # Note: The temp file remains on disk until system cleanup or manual deletion
-            pass
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+        
+        # Send the PDF bytes as a download
+        return Response(pdf_bytes, mimetype='application/pdf',
+                        headers={"Content-Disposition": 'attachment; filename="Knowledge_Graph_Report.pdf"'})
         
     except Exception as e:
         import traceback
@@ -225,7 +225,8 @@ def save_graph():
     
     try:
         # Save current graph state to disk
-        with open('graph_data.json', 'w', encoding='utf-8') as f:
+        graph_path = os.path.join(os.path.dirname(__file__), 'graph_data.json')
+        with open(graph_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2)
         return jsonify({"status": "success"})
     except Exception as e:
