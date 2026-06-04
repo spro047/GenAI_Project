@@ -15,7 +15,6 @@ import argparse
 import json
 import requests
 import re
-import chromadb
 from serpapi import GoogleSearch
 from dotenv import load_dotenv
 
@@ -60,7 +59,9 @@ FALLBACK_HF_MODEL = "Qwen/Qwen2.5-72B-Instruct"
 # Use /tmp on Vercel (read-only filesystem elsewhere); fallback to local dir
 IS_VERCEL = os.environ.get("VERCEL", "").lower() == "1"
 VDB_PATH = "/tmp/vdb_storage" if IS_VERCEL else os.path.join(os.path.dirname(__file__), "vdb_storage")
+vdb_collection = None
 try:
+    import chromadb
     os.makedirs(VDB_PATH, exist_ok=True)
     vdb_client = chromadb.PersistentClient(path=VDB_PATH)
     # Use ONNX embedding (lighter, no torch) on Vercel; SentenceTransformers otherwise
