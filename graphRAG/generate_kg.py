@@ -57,13 +57,22 @@ FALLBACK_HF_MODEL = "Qwen/Qwen2.5-72B-Instruct"
 # ═══════════════════════════════════════════════════════════════════════════
 # VECTOR DATABASE (ChromaDB) INITIALIZATION
 # ═══════════════════════════════════════════════════════════════════════════
+# Use /tmp on Vercel (read-only filesystem elsewhere); fallback to local dir
+IS_VERCEL = os.environ.get("VERCEL", "").lower() == "1"
+VDB_PATH = "/tmp/vdb_storage" if IS_VERCEL else os.path.join(os.path.dirname(__file__), "vdb_storage")
 try:
-    VDB_PATH = os.path.join(os.path.dirname(__file__), "vdb_storage")
+    os.makedirs(VDB_PATH, exist_ok=True)
     vdb_client = chromadb.PersistentClient(path=VDB_PATH)
-    # Using DefaultEmbeddingFunction which uses SentenceTransformers 'all-MiniLM-L6-v2'
+    # Use ONNX embedding (lighter, no torch) on Vercel; SentenceTransformers otherwise
+    if IS_VERCEL:
+        from chromadb.utils.embedding_functions import ONNXMiniLM_L6_V2
+        embedding_function = ONNXMiniLM_L6_V2()
+    else:
+        embedding_function = chromadb.utils.embedding_functions.DefaultEmbeddingFunction()
     vdb_collection = vdb_client.get_or_create_collection(
         name="knowledge_graph_chunks",
-        metadata={"hnsw:space": "cosine"}
+        metadata={"hnsw:space": "cosine"},
+        embedding_function=embedding_function
     )
     logger.info(f"Vector Database initialized at: {VDB_PATH}")
 except Exception as e:
