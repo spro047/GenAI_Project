@@ -69,13 +69,22 @@ FALLBACK_HF_MODEL = "Qwen/Qwen2.5-72B-Instruct"
 # ═══════════════════════════════════════════════════════════════════════════
 # VECTOR DATABASE (ChromaDB) INITIALIZATION
 # ═══════════════════════════════════════════════════════════════════════════
+# Use /tmp on Vercel (read-only filesystem elsewhere); fallback to local dir
+IS_VERCEL = os.environ.get("VERCEL", "").lower() == "1"
+VDB_PATH = "/tmp/vdb_storage" if IS_VERCEL else os.path.join(os.path.dirname(__file__), "vdb_storage")
 try:
-    VDB_PATH = os.path.join(os.path.dirname(__file__), "vdb_storage")
+    os.makedirs(VDB_PATH, exist_ok=True)
     vdb_client = chromadb.PersistentClient(path=VDB_PATH)
-    # Using DefaultEmbeddingFunction which uses SentenceTransformers 'all-MiniLM-L6-v2'
+    # Use ONNX embedding (lighter, no torch) on Vercel; SentenceTransformers otherwise
+    if IS_VERCEL:
+        from chromadb.utils.embedding_functions import ONNXMiniLM_L6_V2
+        embedding_function = ONNXMiniLM_L6_V2()
+    else:
+        embedding_function = chromadb.utils.embedding_functions.DefaultEmbeddingFunction()
     vdb_collection = vdb_client.get_or_create_collection(
         name="knowledge_graph_chunks",
-        metadata={"hnsw:space": "cosine"}
+        metadata={"hnsw:space": "cosine"},
+        embedding_function=embedding_function
     )
     logger.info(f"Vector Database initialized at: {VDB_PATH}")
 except Exception as e:
@@ -294,7 +303,7 @@ def get_augmented_text(text: str) -> str:
     return augmented
 
 
-def call_hf_inference_with_prompt(prompt: str, model: str, token: str) -> str:
+def call_hf_inference_with_prompt(prompt: str, model: str, token: str, max_tokens: int = 4000) -> str:
     """
     Generic wrapper to call the Hugging Face Inference API with a specific prompt.
     Returns the raw string response from the model.
@@ -304,7 +313,7 @@ def call_hf_inference_with_prompt(prompt: str, model: str, token: str) -> str:
     response = client.chat_completion(
         messages=[{"role": "user", "content": prompt}],
         model=model,
-        max_tokens=1500
+        max_tokens=max_tokens
     )
     return response.choices[0].message.content
 
@@ -315,32 +324,16 @@ def call_hf_inference(text: str, model: str, token: str) -> str:
     Provides strict rules and formatting instructions in the prompt.
     """
     prompt = (
-        "You are a precision Knowledge Graph engine. Return ONLY a raw JSON array, no markdown, no explanation.\n\n"
+        "You are a precision Knowledge Graph engine. Extract entities and relationships from the TEXT below.\n\n"
+        "Return ONLY a raw JSON array, no markdown, no explanation.\n"
         "Each item: {\"subject\": \"Entity\", \"predicate\": \"RELATION\", \"object\": \"Entity\"}\n\n"
         "RULES:\n"
         "1. Entity names = clean proper nouns only. NEVER put a job title inside an entity name.\n"
-        "   BAD: {\"subject\":\"Sundar Pichai\",\"predicate\":\"WORKS_AT\",\"object\":\"CEO of Google\"}\n"
-        "   GOOD: {\"subject\":\"Google\",\"predicate\":\"CEO\",\"object\":\"Sundar Pichai\"}\n"
-        "2. Predicate = exact role or relationship, NEVER a generic verb:\n"
-        "   Roles   -> CEO, CTO, CFO, FOUNDER, CO_FOUNDER, CHAIRMAN, CHIEF_AI_SCIENTIST\n"
-        "   Creation-> CREATED, DEVELOPED, BUILT, LAUNCHED\n"
-        "   Money   -> INVESTED_IN, ACQUIRED, FUNDED, PARTNERED_WITH\n"
-        "   Location-> HEADQUARTERED_IN, BASED_IN, BORN_IN\n"
-        "   Compete -> COMPETES_WITH\n"
-        "   Power   -> POWERED_BY, RUNS_ON, REPLACED\n"
-        "   Org     -> OWNED_BY, SUBSIDIARY_OF, LEADS\n"
-        "   BANNED  : WORKS_AT, LIVES_AT, IS_A, HAS, IS, RELATED_TO, ASSOCIATED_WITH\n"
-        "3. Direction: Company--CEO-->Person, Person--FOUNDED-->Company, Company--CREATED-->Product\n"
-        "4. Resolve pronouns. One atomic fact per triple. No duplicates.\n\n"
-        "EXAMPLES:\n"
-        "[\n"
-        "  {\"subject\":\"Tesla\",\"predicate\":\"CEO\",\"object\":\"Elon Musk\"},\n"
-        "  {\"subject\":\"Elon Musk\",\"predicate\":\"FOUNDED\",\"object\":\"SpaceX\"},\n"
-        "  {\"subject\":\"Google\",\"predicate\":\"CEO\",\"object\":\"Sundar Pichai\"},\n"
-        "  {\"subject\":\"Google\",\"predicate\":\"CREATED\",\"object\":\"Gemini\"},\n"
-        "  {\"subject\":\"Microsoft\",\"predicate\":\"INVESTED_IN\",\"object\":\"OpenAI\"},\n"
-        "  {\"subject\":\"SpaceX\",\"predicate\":\"HEADQUARTERED_IN\",\"object\":\"Hawthorne\"}\n"
-        "]\n\n"
+        "2. Predicate = exact role or relationship. Use: CEO, CTO, CFO, FOUNDER, CREATED, DEVELOPED, INVESTED_IN, ACQUIRED, HEADQUARTERED_IN, BASED_IN, BORN_IN, COMPETES_WITH, POWERED_BY, REPLACED, OWNED_BY, SUBSIDIARY_OF, LEADS, MEMBER_OF, CHILD_OF, SPOUSE_OF, ALLY_OF, ENEMY_OF, RULES, LOCATED_IN, FOUND_ON, PART_OF.\n"
+        "3. Direction: Subject -> Predicate -> Object must be factual from the text.\n"
+        "4. Extract ONLY entities actually mentioned in the text below. Do NOT invent entities or reuse example names.\n"
+        "5. One atomic fact per triple. No duplicates. Resolve pronouns.\n"
+        "6. NEVER include generic words like 'Because', 'Although', 'Nevertheless', 'Meanwhile', 'Upon', 'Through', 'Before', 'Eventually', 'Within', 'During', 'Under', 'One', 'Together' as entities.\n\n"
         f"TEXT:\n{text}\n\nJSON OUTPUT (array only):"
     )
     return call_hf_inference_with_prompt(prompt, model, token)
@@ -367,6 +360,20 @@ def parse_triples_from_text(text: str):
                     return triples
         except Exception:
             pass
+
+    # Fallback: extract individual triple objects even from a truncated array
+    # (output may be cut off before the closing ']')
+    triples = []
+    for obj_match in re.finditer(r'\{[^{}]*"subject"[^{}]*"predicate"[^{}]*"object"[^{}]*\}', clean):
+        try:
+            obj = json.loads(obj_match.group(0))
+            if all(k in obj for k in ("subject", "predicate", "object")):
+                triples.append((obj["subject"].strip(), obj["predicate"].strip(), obj["object"].strip()))
+        except Exception:
+            continue
+    if triples:
+        return triples
+
     # Line-based fallback
     triples = []
     for line in clean.splitlines():
@@ -433,9 +440,14 @@ def triples_to_graph(triples, text=""):
             
         return name
 
+    STOP_WORDS = {'because','although','nevertheless','meanwhile','upon','through','before','eventually','within','during','under','one','together','the','a','an','in','on','at','to','for','of','with','by','from','and','or','but','is','was','are','were','be','been','it','its','they','them','their','he','she','him','her','we','us','our','you','i','this','that','these','those'}
+
     def infer_type(entity, text):
         el = entity.lower()
         words = set(re.findall(r'\w+', el))
+
+        if el in STOP_WORDS or all(w.lower() in STOP_WORDS for w in entity.split() if w):
+            return "CONCEPT"
 
         # Person indicators
         person_titles = {'dr','mr','mrs','miss','prof','sir','king','queen','prince','princess','lord','lady','ceo','president','founder','director','chairman','chief','scientist','researcher','engineer'}
@@ -482,9 +494,9 @@ def triples_to_graph(triples, text=""):
         if words & tech_words:
             return "TECHNOLOGY"
 
-        # 1-3 capitalized words -> likely a person
+        # 2-3 capitalized words -> likely a person (single words default to CONCEPT)
         ws = entity.split()
-        if 1 <= len(ws) <= 3 and all(w[0].isupper() for w in ws if w):
+        if 2 <= len(ws) <= 3 and all(w[0].isupper() for w in ws if w):
             return "PERSON"
 
         return "CONCEPT"

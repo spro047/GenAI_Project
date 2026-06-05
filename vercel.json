@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "graphRAG/app.py",
+      "use": "@vercel/python",
+      "config": {
+        "maxLambdaSize": "300mb",
+        "runtime": "python3.12"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "graphRAG/app.py"
+    }
+  ]
+}

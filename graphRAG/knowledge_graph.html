@@ -2531,6 +2531,22 @@
     });
 
     // ═══════════════════════════════════════════════════════════════════════════
+    // ACTIVE MODEL DISPLAY
+    // ═══════════════════════════════════════════════════════════════════════════
+    let currentActiveModel = "—";
+    async function refreshActiveModel() {
+      try {
+        const r = await fetch("/model_info");
+        if (r.ok) {
+          const info = await r.json();
+          currentActiveModel = info.active_model || "—";
+        }
+      } catch (e) { /* keep default */ }
+      document.getElementById("stat-method").textContent = currentActiveModel;
+    }
+    refreshActiveModel();
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // RECENTS
     // ═══════════════════════════════════════════════════════════════════════════
     function saveToRecents(text, data) {
@@ -2584,7 +2600,7 @@
         div.addEventListener('click', () => {
           inputText.value = item.text;
           currentGraphText = item.text;
-          document.getElementById("stat-method").textContent = item.data.extraction_method || "—";
+          document.getElementById("stat-method").textContent = currentActiveModel;
           document.getElementById("stat-search").textContent = item.data.search_augmented ? "yes" : "no";
           initGraph(item.data);
           saveToRecents(item.text, item.data);

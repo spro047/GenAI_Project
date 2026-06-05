@@ -311,6 +311,26 @@ def merge_workspace():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/model_info', methods=['GET'])
+def model_info():
+    """Returns the currently active model and extraction pipeline info."""
+    from generate_kg import HF_API, HF_MODEL, USE_LOCAL_GGUF, USE_LOCAL_LLM, LOCAL_GGUF_MODEL, LOCAL_LLM_URL
+    if USE_LOCAL_GGUF:
+        active = f"Local GGUF ({LOCAL_GGUF_MODEL})"
+    elif USE_LOCAL_LLM:
+        active = f"Local LLM ({LOCAL_LLM_URL})"
+    elif HF_API and HF_MODEL:
+        active = f"Hugging Face ({HF_MODEL})"
+    else:
+        active = "Heuristic Fallback"
+    return jsonify({
+        "active_model": active,
+        "huggingface_model": HF_MODEL,
+        "use_local_gguf": USE_LOCAL_GGUF,
+        "use_local_llm": USE_LOCAL_LLM
+    })
+
+
 if __name__ == '__main__':
     # Start the Flask server
     port = int(os.getenv('PORT', 8000))
