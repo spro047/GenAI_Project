@@ -1,280 +1,511 @@
 {
-  "communities": 1,
-  "extraction_method": "Hugging Face (meta-llama/Meta-Llama-3-8B-Instruct)",
+  "communities": 2,
+  "extraction_method": "Hugging Face (Qwen/Qwen2.5-72B-Instruct)",
   "links": [
     {
-      "description": "Harry Potter BORN_IN London",
-      "label": "BORN_IN",
+      "description": "Muad\u2019Dib SON_OF Duke Leto Atreides",
+      "label": "SON_OF",
       "source": 1,
-      "source_label": "Harry Potter",
+      "source_label": "Muad\u2019Dib",
       "target": 2,
-      "target_label": "London"
+      "target_label": "Duke Leto Atreides"
     },
     {
-      "description": "Harry Potter LIVES_AT Hogwarts School of Witchcraft and Wizardry",
-      "label": "LIVES_AT",
+      "description": "Muad\u2019Dib SON_OF Lady Jessica",
+      "label": "SON_OF",
       "source": 1,
-      "source_label": "Harry Potter",
+      "source_label": "Muad\u2019Dib",
       "target": 3,
-      "target_label": "Hogwarts School of Witchcraft and Wizardry"
+      "target_label": "Lady Jessica"
     },
     {
-      "description": "Hogwarts School of Witchcraft and Wizardry HEADQUARTERED_IN Scotland",
-      "label": "HEADQUARTERED_IN",
-      "source": 3,
-      "source_label": "Hogwarts School of Witchcraft and Wizardry",
+      "description": "Duke Leto Atreides LEADER_OF House Atreides",
+      "label": "LEADER_OF",
+      "source": 2,
+      "source_label": "Duke Leto Atreides",
       "target": 4,
-      "target_label": "Scotland"
+      "target_label": "House Atreides"
     },
     {
-      "description": "Hogwarts School of Witchcraft and Wizardry OWNED_BY Albus Dumbledore",
-      "label": "OWNED_BY",
+      "description": "Lady Jessica BELONGS_TO Bene Gesserit",
+      "label": "BELONGS_TO",
       "source": 3,
-      "source_label": "Hogwarts School of Witchcraft and Wizardry",
+      "source_label": "Lady Jessica",
       "target": 5,
-      "target_label": "Albus Dumbledore"
+      "target_label": "Bene Gesserit"
     },
     {
-      "description": "Albus Dumbledore CEO Hogwarts School of Witchcraft and Wizardry",
-      "label": "CEO",
+      "description": "Bene Gesserit SEEKS Kwisatz Haderach",
+      "label": "SEEKS",
       "source": 5,
-      "source_label": "Albus Dumbledore",
-      "target": 3,
-      "target_label": "Hogwarts School of Witchcraft and Wizardry"
-    },
-    {
-      "description": "Harry Potter FRIEND Ron Weasley",
-      "label": "FRIEND",
-      "source": 1,
-      "source_label": "Harry Potter",
+      "source_label": "Bene Gesserit",
       "target": 6,
-      "target_label": "Ron Weasley"
+      "target_label": "Kwisatz Haderach"
     },
     {
-      "description": "Harry Potter FRIEND Hermione Granger",
-      "label": "FRIEND",
+      "description": "Muad\u2019Dib BORN_ON Caladan",
+      "label": "BORN_ON",
       "source": 1,
-      "source_label": "Harry Potter",
+      "source_label": "Muad\u2019Dib",
       "target": 7,
-      "target_label": "Hermione Granger"
+      "target_label": "Caladan"
     },
     {
-      "description": "Harry Potter FOUNDED Hogwarts School of Witchcraft and Wizardry",
-      "label": "FOUNDED",
-      "source": 1,
-      "source_label": "Harry Potter",
-      "target": 3,
-      "target_label": "Hogwarts School of Witchcraft and Wizardry"
-    },
-    {
-      "description": "Hogwarts School of Witchcraft and Wizardry FOUNDED_BY Salazar Slytherin",
-      "label": "FOUNDED_BY",
-      "source": 3,
-      "source_label": "Hogwarts School of Witchcraft and Wizardry",
+      "description": "House Atreides RESPECTED_IN Imperium",
+      "label": "RESPECTED_IN",
+      "source": 4,
+      "source_label": "House Atreides",
       "target": 8,
-      "target_label": "Salazar Slytherin"
+      "target_label": "Imperium"
     },
     {
-      "description": "Hogwarts School of Witchcraft and Wizardry SUBSIDIARY_OF Ministry of Magic",
-      "label": "SUBSIDIARY_OF",
-      "source": 3,
-      "source_label": "Hogwarts School of Witchcraft and Wizardry",
-      "target": 9,
-      "target_label": "Ministry of Magic"
-    },
-    {
-      "description": "Ministry of Magic HEADQUARTERED_IN London",
-      "label": "HEADQUARTERED_IN",
+      "description": "Padishah Emperor Shaddam IV RULES Imperium",
+      "label": "RULES",
       "source": 9,
-      "source_label": "Ministry of Magic",
+      "source_label": "Padishah Emperor Shaddam IV",
+      "target": 8,
+      "target_label": "Imperium"
+    },
+    {
+      "description": "Padishah Emperor Shaddam IV ORDERS Duke Leto Atreides",
+      "label": "ORDERS",
+      "source": 9,
+      "source_label": "Padishah Emperor Shaddam IV",
       "target": 2,
-      "target_label": "London"
+      "target_label": "Duke Leto Atreides"
     },
     {
-      "description": "Ministry of Magic OWNED_BY British Government",
-      "label": "OWNED_BY",
-      "source": 9,
-      "source_label": "Ministry of Magic",
+      "description": "Duke Leto Atreides TAKES_CONTROL_OF Arrakis",
+      "label": "TAKES_CONTROL_OF",
+      "source": 2,
+      "source_label": "Duke Leto Atreides",
       "target": 10,
-      "target_label": "British Government"
+      "target_label": "Arrakis"
     },
     {
-      "description": "Harry Potter MURDERED_BY Lord Voldemort",
-      "label": "MURDERED_BY",
-      "source": 1,
-      "source_label": "Harry Potter",
+      "description": "Duke Leto Atreides REPLACES House Harkonnen",
+      "label": "REPLACES",
+      "source": 2,
+      "source_label": "Duke Leto Atreides",
       "target": 11,
-      "target_label": "Lord Voldemort"
+      "target_label": "House Harkonnen"
     },
     {
-      "description": "Lord Voldemort BORN_IN England",
-      "label": "BORN_IN",
+      "description": "House Harkonnen COMPETES_WITH House Atreides",
+      "label": "COMPETES_WITH",
       "source": 11,
-      "source_label": "Lord Voldemort",
+      "source_label": "House Harkonnen",
+      "target": 4,
+      "target_label": "House Atreides"
+    },
+    {
+      "description": "House Harkonnen LEADER_OF Baron Vladimir Harkonnen",
+      "label": "LEADER_OF",
+      "source": 11,
+      "source_label": "House Harkonnen",
       "target": 12,
-      "target_label": "England"
+      "target_label": "Baron Vladimir Harkonnen"
     },
     {
-      "description": "Lord Voldemort POWERED_BY Horcruxes",
-      "label": "POWERED_BY",
-      "source": 11,
-      "source_label": "Lord Voldemort",
-      "target": 13,
-      "target_label": "Horcruxes"
-    },
-    {
-      "description": "Horcruxes CREATED_BY Lord Voldemort",
-      "label": "CREATED_BY",
+      "description": "Spice Melange PRODUCED_ON Arrakis",
+      "label": "PRODUCED_ON",
       "source": 13,
-      "source_label": "Horcruxes",
-      "target": 11,
-      "target_label": "Lord Voldemort"
+      "source_label": "Spice Melange",
+      "target": 10,
+      "target_label": "Arrakis"
     },
     {
-      "description": "Harry Potter DEFEATED Lord Voldemort",
-      "label": "DEFEATED",
-      "source": 1,
-      "source_label": "Harry Potter",
-      "target": 11,
-      "target_label": "Lord Voldemort"
+      "description": "Spice Melange GRANTS Heightened Awareness",
+      "label": "GRANTS",
+      "source": 13,
+      "source_label": "Spice Melange",
+      "target": 14,
+      "target_label": "Heightened Awareness"
     },
     {
-      "description": "Lily Potter MURDERED_BY Lord Voldemort",
-      "label": "MURDERED_BY",
-      "source": 14,
-      "source_label": "Lily Potter",
-      "target": 11,
-      "target_label": "Lord Voldemort"
-    },
-    {
-      "description": "Lord Voldemort ASSOCIATED_WITH Dark Arts",
-      "label": "ASSOCIATED_WITH",
-      "source": 11,
-      "source_label": "Lord Voldemort",
+      "description": "Spice Melange GRANTS Extended Life",
+      "label": "GRANTS",
+      "source": 13,
+      "source_label": "Spice Melange",
       "target": 15,
-      "target_label": "Dark Arts"
+      "target_label": "Extended Life"
     },
     {
-      "description": "Harry Potter ASSOCIATED_WITH Wizarding World",
-      "label": "ASSOCIATED_WITH",
-      "source": 1,
-      "source_label": "Harry Potter",
+      "description": "Spice Melange ENABLES Spacing Guild",
+      "label": "ENABLES",
+      "source": 13,
+      "source_label": "Spice Melange",
       "target": 16,
-      "target_label": "Wizarding World"
+      "target_label": "Spacing Guild"
+    },
+    {
+      "description": "Spacing Guild NAVIGATES Interstellar Travel",
+      "label": "NAVIGATES",
+      "source": 16,
+      "source_label": "Spacing Guild",
+      "target": 17,
+      "target_label": "Interstellar Travel"
+    },
+    {
+      "description": "Muad\u2019Dib LIVES_ON Caladan",
+      "label": "LIVES_ON",
+      "source": 1,
+      "source_label": "Muad\u2019Dib",
+      "target": 7,
+      "target_label": "Caladan"
+    },
+    {
+      "description": "Muad\u2019Dib DEVELOPS Extraordinary Abilities",
+      "label": "DEVELOPS",
+      "source": 1,
+      "source_label": "Muad\u2019Dib",
+      "target": 18,
+      "target_label": "Extraordinary Abilities"
+    },
+    {
+      "description": "Fremen INHABIT Arrakis",
+      "label": "INHABIT",
+      "source": 19,
+      "source_label": "Fremen",
+      "target": 10,
+      "target_label": "Arrakis"
+    },
+    {
+      "description": "Fremen PROPHECY Messianic Figure",
+      "label": "PROPHECY",
+      "source": 19,
+      "source_label": "Fremen",
+      "target": 20,
+      "target_label": "Messianic Figure"
+    },
+    {
+      "description": "Muad\u2019Dib RESPECTED_BY Fremen",
+      "label": "RESPECTED_BY",
+      "source": 1,
+      "source_label": "Muad\u2019Dib",
+      "target": 19,
+      "target_label": "Fremen"
+    },
+    {
+      "description": "Lady Jessica RESPECTED_BY Fremen",
+      "label": "RESPECTED_BY",
+      "source": 3,
+      "source_label": "Lady Jessica",
+      "target": 19,
+      "target_label": "Fremen"
+    },
+    {
+      "description": "Lady Jessica SURVIVES Water of Life",
+      "label": "SURVIVES",
+      "source": 3,
+      "source_label": "Lady Jessica",
+      "target": 21,
+      "target_label": "Water of Life"
+    },
+    {
+      "description": "Muad\u2019Dib SURVIVES Water of Life",
+      "label": "SURVIVES",
+      "source": 1,
+      "source_label": "Muad\u2019Dib",
+      "target": 21,
+      "target_label": "Water of Life"
+    },
+    {
+      "description": "Muad\u2019Dib KILLS Duke Leto Atreides",
+      "label": "KILLS",
+      "source": 1,
+      "source_label": "Muad\u2019Dib",
+      "target": 2,
+      "target_label": "Duke Leto Atreides"
+    },
+    {
+      "description": "Duke Leto Atreides CAPTURED_BY Baron Vladimir Harkonnen",
+      "label": "CAPTURED_BY",
+      "source": 2,
+      "source_label": "Duke Leto Atreides",
+      "target": 12,
+      "target_label": "Baron Vladimir Harkonnen"
+    },
+    {
+      "description": "Muad\u2019Dib ESCAPES_TO Arrakis",
+      "label": "ESCAPES_TO",
+      "source": 1,
+      "source_label": "Muad\u2019Dib",
+      "target": 10,
+      "target_label": "Arrakis"
+    },
+    {
+      "description": "Muad\u2019Dib ALLY_OF Stilgar",
+      "label": "ALLY_OF",
+      "source": 1,
+      "source_label": "Muad\u2019Dib",
+      "target": 23,
+      "target_label": "Stilgar"
+    },
+    {
+      "description": "Stilgar LEADER_OF Fremen Tribe",
+      "label": "LEADER_OF",
+      "source": 23,
+      "source_label": "Stilgar",
+      "target": 24,
+      "target_label": "Fremen Tribe"
+    },
+    {
+      "description": "Liet-Kynes PLANNED Ecological Transformation of Arrakis",
+      "label": "PLANNED",
+      "source": 25,
+      "source_label": "Liet-Kynes",
+      "target": 26,
+      "target_label": "Ecological Transformation of Arrakis"
+    },
+    {
+      "description": "Muad\u2019Dib LEADS Fremen Raids",
+      "label": "LEADS",
+      "source": 1,
+      "source_label": "Muad\u2019Dib",
+      "target": 27,
+      "target_label": "Fremen Raids"
+    },
+    {
+      "description": "Muad\u2019Dib BECOMES Kwisatz Haderach",
+      "label": "BECOMES",
+      "source": 1,
+      "source_label": "Muad\u2019Dib",
+      "target": 6,
+      "target_label": "Kwisatz Haderach"
+    },
+    {
+      "description": "Muad\u2019Dib CAPTURES Padishah Emperor Shaddam IV",
+      "label": "CAPTURES",
+      "source": 1,
+      "source_label": "Muad\u2019Dib",
+      "target": 9,
+      "target_label": "Padishah Emperor Shaddam IV"
+    },
+    {
+      "description": "Muad\u2019Dib DEFEATS Feyd-Rautha Harkonnen",
+      "label": "DEFEATS",
+      "source": 1,
+      "source_label": "Muad\u2019Dib",
+      "target": 28,
+      "target_label": "Feyd-Rautha Harkonnen"
+    },
+    {
+      "description": "Muad\u2019Dib WIFE_OF Princess Irulan",
+      "label": "WIFE_OF",
+      "source": 1,
+      "source_label": "Muad\u2019Dib",
+      "target": 29,
+      "target_label": "Princess Irulan"
     }
   ],
   "nodes": [
     {
-      "aliases": [],
-      "description": "A person mentioned in the text.",
+      "aliases": [
+        "Paul Atreides"
+      ],
+      "description": "A concept mentioned in the text.",
       "id": 1,
-      "label": "Harry Potter",
-      "type": "PERSON"
-    },
-    {
-      "aliases": [],
-      "description": "A location mentioned in the text.",
-      "id": 2,
-      "label": "London",
-      "type": "LOCATION"
-    },
-    {
-      "aliases": [],
-      "description": "A organization mentioned in the text.",
-      "id": 3,
-      "label": "Hogwarts School of Witchcraft and Wizardry",
-      "type": "ORGANIZATION"
+      "label": "Muad\u2019Dib",
+      "type": "CONCEPT"
     },
     {
       "aliases": [],
       "description": "A person mentioned in the text.",
-      "id": 4,
-      "label": "Scotland",
+      "id": 2,
+      "label": "Duke Leto Atreides",
       "type": "PERSON"
+    },
+    {
+      "aliases": [],
+      "description": "A person mentioned in the text.",
+      "id": 3,
+      "label": "Lady Jessica",
+      "type": "PERSON"
+    },
+    {
+      "aliases": [],
+      "description": "A government mentioned in the text.",
+      "id": 4,
+      "label": "House Atreides",
+      "type": "GOVERNMENT"
     },
     {
       "aliases": [],
       "description": "A person mentioned in the text.",
       "id": 5,
-      "label": "Albus Dumbledore",
+      "label": "Bene Gesserit",
       "type": "PERSON"
     },
     {
       "aliases": [],
       "description": "A person mentioned in the text.",
       "id": 6,
-      "label": "Ron Weasley",
+      "label": "Kwisatz Haderach",
       "type": "PERSON"
     },
     {
       "aliases": [],
-      "description": "A person mentioned in the text.",
+      "description": "A concept mentioned in the text.",
       "id": 7,
-      "label": "Hermione Granger",
-      "type": "PERSON"
+      "label": "Caladan",
+      "type": "CONCEPT"
     },
     {
       "aliases": [],
-      "description": "A person mentioned in the text.",
+      "description": "A concept mentioned in the text.",
       "id": 8,
-      "label": "Salazar Slytherin",
-      "type": "PERSON"
+      "label": "Imperium",
+      "type": "CONCEPT"
+    },
+    {
+      "aliases": [],
+      "description": "A concept mentioned in the text.",
+      "id": 9,
+      "label": "Padishah Emperor Shaddam IV",
+      "type": "CONCEPT"
+    },
+    {
+      "aliases": [],
+      "description": "A concept mentioned in the text.",
+      "id": 10,
+      "label": "Arrakis",
+      "type": "CONCEPT"
     },
     {
       "aliases": [],
       "description": "A government mentioned in the text.",
-      "id": 9,
-      "label": "Ministry of Magic",
-      "type": "GOVERNMENT"
-    },
-    {
-      "aliases": [],
-      "description": "A organization mentioned in the text.",
-      "id": 10,
-      "label": "British Government",
-      "type": "ORGANIZATION"
-    },
-    {
-      "aliases": [],
-      "description": "A person mentioned in the text.",
       "id": 11,
-      "label": "Lord Voldemort",
-      "type": "PERSON"
+      "label": "House Harkonnen",
+      "type": "GOVERNMENT"
     },
     {
       "aliases": [],
       "description": "A person mentioned in the text.",
       "id": 12,
-      "label": "England",
+      "label": "Baron Vladimir Harkonnen",
       "type": "PERSON"
     },
     {
       "aliases": [],
       "description": "A person mentioned in the text.",
       "id": 13,
-      "label": "Horcruxes",
+      "label": "Spice Melange",
       "type": "PERSON"
     },
     {
       "aliases": [],
       "description": "A person mentioned in the text.",
       "id": 14,
-      "label": "Lily Potter",
+      "label": "Heightened Awareness",
       "type": "PERSON"
     },
     {
       "aliases": [],
       "description": "A person mentioned in the text.",
       "id": 15,
-      "label": "Dark Arts",
+      "label": "Extended Life",
       "type": "PERSON"
     },
     {
       "aliases": [],
       "description": "A person mentioned in the text.",
       "id": 16,
-      "label": "Wizarding World",
+      "label": "Spacing Guild",
       "type": "PERSON"
+    },
+    {
+      "aliases": [],
+      "description": "A person mentioned in the text.",
+      "id": 17,
+      "label": "Interstellar Travel",
+      "type": "PERSON"
+    },
+    {
+      "aliases": [],
+      "description": "A person mentioned in the text.",
+      "id": 18,
+      "label": "Extraordinary Abilities",
+      "type": "PERSON"
+    },
+    {
+      "aliases": [],
+      "description": "A concept mentioned in the text.",
+      "id": 19,
+      "label": "Fremen",
+      "type": "CONCEPT"
+    },
+    {
+      "aliases": [],
+      "description": "A person mentioned in the text.",
+      "id": 20,
+      "label": "Messianic Figure",
+      "type": "PERSON"
+    },
+    {
+      "aliases": [],
+      "description": "A concept mentioned in the text.",
+      "id": 21,
+      "label": "Water of Life",
+      "type": "CONCEPT"
+    },
+    {
+      "aliases": [],
+      "description": "A concept mentioned in the text.",
+      "id": 23,
+      "label": "Stilgar",
+      "type": "CONCEPT"
+    },
+    {
+      "aliases": [],
+      "description": "A person mentioned in the text.",
+      "id": 24,
+      "label": "Fremen Tribe",
+      "type": "PERSON"
+    },
+    {
+      "aliases": [],
+      "description": "A concept mentioned in the text.",
+      "id": 25,
+      "label": "Liet-Kynes",
+      "type": "CONCEPT"
+    },
+    {
+      "aliases": [],
+      "description": "A concept mentioned in the text.",
+      "id": 26,
+      "label": "Ecological Transformation of Arrakis",
+      "type": "CONCEPT"
+    },
+    {
+      "aliases": [],
+      "description": "A person mentioned in the text.",
+      "id": 27,
+      "label": "Fremen Raids",
+      "type": "PERSON"
+    },
+    {
+      "aliases": [],
+      "description": "A person mentioned in the text.",
+      "id": 28,
+      "label": "Feyd-Rautha Harkonnen",
+      "type": "PERSON"
+    },
+    {
+      "aliases": [],
+      "description": "A person mentioned in the text.",
+      "id": 29,
+      "label": "Princess Irulan",
+      "type": "PERSON"
+    },
+    {
+      "aliases": [],
+      "description": "A person mentioned in the text.",
+      "id": 30,
+      "label": "Paul Atreides",
+      "type": "PERSON",
+      "x": 831.3217773798885,
+      "y": 252.5611312878893
     }
   ],
   "search_augmented": true,

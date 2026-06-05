@@ -333,6 +333,6 @@ def model_info():
 
 if __name__ == '__main__':
     # Start the Flask server
-    port = int(os.getenv('PORT', 8000))
+    port = int(os.getenv('PORT', 8080))
     print(f"Starting Knowledge Graph Builder on http://localhost:{port}")
     app.run(host='0.0.0.0', port=port, debug=True)
