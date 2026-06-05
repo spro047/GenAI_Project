@@ -55,8 +55,9 @@ def generate():
         # Extract triples and build graph structure
         result = generate_graph_from_text(text)
         
-        # Index the text in the Vector Database for RAG capabilities
-        index_text_in_vdb(text)
+        # Index the text in the Vector Database for RAG capabilities in the background to prevent blocking
+        import threading
+        threading.Thread(target=index_text_in_vdb, args=(text,), daemon=True).start()
         
         return jsonify(result)
     except Exception as e:
@@ -279,8 +280,9 @@ def ingest_document():
         doc_id = database.add_document(project_id, filename, text)
         database.save_graph(project_id, doc_id, result)
         
-        # 3. Index in VDB for RAG
-        index_text_in_vdb(text)
+        # 3. Index in VDB for RAG in the background
+        import threading
+        threading.Thread(target=index_text_in_vdb, args=(text,), daemon=True).start()
         
         return jsonify(result)
     except Exception as e:

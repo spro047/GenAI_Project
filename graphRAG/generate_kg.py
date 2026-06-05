@@ -27,19 +27,31 @@ logger = logging.getLogger(__name__)
 # Load environment variables (override=True ensures fresh .env values are always used)
 load_dotenv(override=True)
 
+def is_placeholder(val: str) -> bool:
+    if not val:
+        return True
+    val_lower = val.lower()
+    return "your_" in val_lower or "token_here" in val_lower or "key_here" in val_lower or val_lower == "placeholder"
 
-HF_API = os.getenv("HUGGINGFACE_API_KEY", "")
+raw_hf_api = os.getenv("HUGGINGFACE_API_KEY", "")
+HF_API = "" if is_placeholder(raw_hf_api) else raw_hf_api
+
 HF_MODEL = os.getenv("HUGGINGFACE_MODEL", "meta-llama/Llama-3.3-70B-Instruct")
-SERPAPI_KEY = os.getenv("SERPAPI_KEY", "")
+
+raw_serpapi = os.getenv("SERPAPI_KEY", "")
+SERPAPI_KEY = "" if is_placeholder(raw_serpapi) else raw_serpapi
 
 # Startup status
 if SERPAPI_KEY:
     logger.info(f"SerpAPI ACTIVE - key loaded ({SERPAPI_KEY[:8]}...)")
 else:
-    logger.warning("SerpAPI DISABLED - SERPAPI_KEY not found in .env")
+    logger.warning("SerpAPI DISABLED - SERPAPI_KEY not found or is placeholder in .env")
+
 # Gemini settings
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+raw_gemini_api = os.getenv("GEMINI_API_KEY", "")
+GEMINI_API_KEY = "" if is_placeholder(raw_gemini_api) else raw_gemini_api
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+
 # Local LLM settings
 USE_LOCAL_LLM = os.getenv("USE_LOCAL_LLM", "false").lower() == "true"
 LOCAL_LLM_URL = os.getenv("LOCAL_LLM_URL", "http://localhost:8080/v1/chat/completions")
@@ -69,6 +81,66 @@ try:
 except Exception as e:
     logger.warning(f"Failed to initialize Vector Database: {e}")
     vdb_collection = None
+
+
+def call_gemini(text: str) -> str:
+    """
+    Calls the Google Gemini API directly via HTTP POST request.
+    Extracts knowledge graph triples from the input text.
+    """
+    if not GEMINI_API_KEY:
+        return ""
+    
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
+    headers = {"Content-Type": "application/json"}
+    
+    prompt = (
+        "You are a precision Knowledge Graph engine. Return ONLY a raw JSON array, no markdown, no explanation.\n\n"
+        "Each item: {\"subject\": \"Entity\", \"predicate\": \"RELATION\", \"object\": \"Entity\"}\n\n"
+        "RULES:\n"
+        "1. Entity names = clean proper nouns only. NEVER put a job title inside an entity name.\n"
+        "   BAD: {\"subject\":\"Sundar Pichai\",\"predicate\":\"WORKS_AT\",\"object\":\"CEO of Google\"}\n"
+        "   GOOD: {\"subject\":\"Google\",\"predicate\":\"CEO\",\"object\":\"Sundar Pichai\"}\n"
+        "2. Predicate = exact role or relationship, NEVER a generic verb:\n"
+        "   Roles   -> CEO, CTO, CFO, FOUNDER, CO_FOUNDER, CHAIRMAN, CHIEF_AI_SCIENTIST\n"
+        "   Creation-> CREATED, DEVELOPED, BUILT, LAUNCHED\n"
+        "   Money   -> INVESTED_IN, ACQUIRED, FUNDED, PARTNERED_WITH\n"
+        "   Location-> HEADQUARTERED_IN, BASED_IN, BORN_IN\n"
+        "   Compete -> COMPETES_WITH\n"
+        "   Power   -> POWERED_BY, RUNS_ON, REPLACED\n"
+        "   Org     -> OWNED_BY, SUBSIDIARY_OF, LEADS\n"
+        "   BANNED  : WORKS_AT, LIVES_AT, IS_A, HAS, IS, RELATED_TO, ASSOCIATED_WITH\n"
+        "3. Direction: Company--CEO-->Person, Person--FOUNDED-->Company, Company--CREATED-->Product\n"
+        "4. Resolve pronouns. One atomic fact per triple. No duplicates.\n\n"
+        f"TEXT:\n{text}\n\nJSON OUTPUT (array only):"
+    )
+    
+    payload = {
+        "contents": [{
+            "parts": [{"text": prompt}]
+        }],
+        "generationConfig": {
+            "temperature": 0.1,
+            "responseMimeType": "application/json"
+        }
+    }
+    
+    try:
+        logger.info(f"Calling Gemini API ({GEMINI_MODEL})...")
+        resp = requests.post(url, headers=headers, json=payload, timeout=60)
+        resp.raise_for_status()
+        data = resp.json()
+        
+        candidates = data.get("candidates", [])
+        if candidates:
+            content = candidates[0].get("content", {})
+            parts = content.get("parts", [])
+            if parts:
+                return parts[0].get("text", "").strip()
+        return ""
+    except Exception as e:
+        logger.error(f"Gemini API call failed: {e}")
+        return ""
 
 
 def call_local_llm(text: str) -> str:
@@ -855,7 +927,13 @@ def generate_graph_from_text(text: str) -> dict:
         logger.info("Text augmented with SerpAPI knowledge.")
     
     # 2. Extract triples using LLM (with fallback to heuristic)
-    if USE_LOCAL_GGUF:
+    if not triples and GEMINI_API_KEY:
+        logger.info(f"Using Gemini model: {GEMINI_MODEL}...")
+        out = call_gemini(augmented_text)
+        triples = parse_triples_from_text(out)
+        if triples: extraction_method = f"Gemini ({GEMINI_MODEL})"
+
+    if not triples and USE_LOCAL_GGUF:
         logger.info(f"Using local GGUF model: {LOCAL_GGUF_MODEL}...")
         out = call_local_gguf(augmented_text)
         triples = parse_triples_from_text(out)
@@ -1131,12 +1209,22 @@ def get_graph_context(query: str, nodes: list, links: list) -> str:
     """Retrieves relevant facts from the graph based on the query."""
     query = query.lower()
     
-    # Check for global summary keywords
-    global_keywords = ['summarize', 'summary', 'overall', 'entire', 'whole', 'graph']
-    is_global_query = any(kw in query for kw in global_keywords) and len(query.split()) < 10
+    # Check for global summary or general structural keywords
+    global_keywords = [
+        'summarize', 'summary', 'overall', 'entire', 'whole', 'graph', 
+        'community', 'communities', 'grouping', 'groupings', 'cluster', 'clusters',
+        'relationship', 'relationships', 'connection', 'connections', 'everything', 'all',
+        'dataset', 'data', 'structure', 'map'
+    ]
+    is_global_query = any(kw in query for kw in global_keywords) and len(query.split()) < 15
 
     relevant_facts = []
     mentioned_nodes = []
+
+    # If the graph is small (<= 15 nodes), fall back to global query automatically
+    # to guarantee helpful responses instead of failing with empty context!
+    if len(nodes) <= 15:
+        is_global_query = True
 
     if is_global_query:
         # For global queries, include all main entities and relationships
@@ -1264,13 +1352,168 @@ def delete_text_from_vdb(text: str):
         logger.error(f"Error deleting from Vector Database: {e}")
 
 
+def get_vector_context_with_timeout(query: str, n_results: int = 3, timeout: float = 0.5) -> str:
+    """Wrapper to query the Vector Database with a strict timeout to prevent blocking."""
+    import threading
+    
+    result = []
+    def target():
+        try:
+            res = get_vector_context(query, n_results)
+            result.append(res)
+        except Exception:
+            pass
+
+    t = threading.Thread(target=target)
+    t.daemon = True
+    t.start()
+    t.join(timeout)
+    
+    if result:
+        return result[0]
+    else:
+        logger.warning("Vector Database query timed out or failed, skipping vector context.")
+        return ""
+
+
+def generate_offline_fallback_answer(query: str, graph_context: str, vector_context: str) -> str:
+    """Generates a structured, clean, and helpful response offline from graph context facts."""
+    if not graph_context and not vector_context:
+        return "I couldn't find any information about those entities in the graph or the indexed documents. Could you try adding more text to build the knowledge base?"
+
+    lines = []
+    lines.append("### 📊 Offline Graph Insight (No LLM Active)")
+    lines.append("I retrieved the following structural relationships directly from the active Knowledge Graph:\n")
+
+    # Parse entities
+    entities_section = False
+    relations_section = False
+    
+    entities = []
+    relations = []
+    
+    for line in graph_context.split('\n'):
+        line = line.strip()
+        if not line:
+            continue
+        if line.startswith("ENTITIES:"):
+            entities_section = True
+            relations_section = False
+            continue
+        if line.startswith("RELATIONSHIPS:"):
+            relations_section = True
+            entities_section = False
+            continue
+            
+        if entities_section:
+            entities.append(line)
+        elif relations_section:
+            relations.append(line)
+
+    if entities:
+        lines.append("**Key Entities Identified:**")
+        for ent in entities:
+            lines.append(f"- **{ent}**")
+        lines.append("")
+
+    if relations:
+        lines.append("**Extracted Connections:**")
+        for rel in relations:
+            # Highlight relations
+            parts = rel.split(' ')
+            if len(parts) >= 3:
+                subj = parts[0]
+                pred = parts[1]
+                obj = " ".join(parts[2:])
+                lines.append(f"- **{subj}** --*{pred}*--> **{obj}**")
+            else:
+                lines.append(f"- {rel}")
+    else:
+        lines.append("*No direct relationships matching your query words were found, but the entities are registered in the graph.*")
+
+    if vector_context:
+        lines.append("\n**Matched Document Passages:**")
+        chunks = vector_context.replace("RELEVANT TEXT CHUNKS:\n", "").split("---")
+        for chunk in chunks:
+            chunk = chunk.strip()
+            if chunk:
+                lines.append(f"> {chunk}\n")
+
+    lines.append("\n*To get rich narrative answers, configure a `GEMINI_API_KEY` or `HUGGINGFACE_API_KEY` in your `.env` file.*")
+    
+    # 3 follow up questions rule
+    lines.append("\n---\n**Explore further:**")
+    if entities:
+        e1 = entities[0].split(':')[0]
+        lines.append(f"1. Tell me more about the connections of {e1}?")
+    else:
+        lines.append("1. What other entities would you like to add?")
+        
+    if len(entities) > 1:
+        e2 = entities[1].split(':')[0]
+        lines.append(f"2. How does {e2} relate to other components in the project?")
+    else:
+        lines.append("2. How can we expand the current graph structure?")
+        
+    lines.append("3. Can you describe the community groupings in this dataset?")
+
+    return "\n".join(lines)
+
+
+def resolve_query_from_history(query: str, history: list = None) -> str:
+    """Resolves follow-ups (e.g., '1st question') using conversation history."""
+    if not history:
+        return query
+        
+    query_lower = query.lower()
+    
+    # Check if the query is referring to an ordinal question number
+    target_idx = None
+    if "1st" in query_lower or "first" in query_lower:
+        target_idx = 1
+    elif "2nd" in query_lower or "second" in query_lower:
+        target_idx = 2
+    elif "3rd" in query_lower or "third" in query_lower:
+        target_idx = 3
+        
+    if target_idx is not None:
+        # Look for the last assistant response
+        for msg in reversed(history):
+            if msg.get('role') in ('assistant', 'ai', 'system'):
+                content = msg.get('content', '')
+                # Find numbered questions like "1. ...", "2. ...", "3. ..."
+                lines = content.split('\n')
+                for line in lines:
+                    line_strip = line.strip()
+                    if line_strip.startswith(f"{target_idx}."):
+                        # Extract the question text
+                        resolved = line_strip[len(str(target_idx)) + 1:].strip()
+                        logger.info(f"Resolved follow-up ordinal '{query}' to: '{resolved}'")
+                        return resolved
+                        
+    # If it's a general follow-up with pronouns/references, append previous context
+    pronouns = {"it", "them", "him", "her", "that", "this", "they", "those", "these", "explain", "describe"}
+    words = set(re.findall(r'\b\w+\b', query_lower))
+    if words & pronouns:
+        for msg in reversed(history):
+            if msg.get('role') == 'user':
+                prev_user = msg.get('content', '')
+                logger.info(f"Appending previous user query context: '{prev_user}'")
+                return f"{query} (Context: {prev_user})"
+                
+    return query
+
+
 def query_graph_rag(query: str, nodes: list, links: list, history: list = None) -> str:
     """Uses Hybrid RAG (Graph + Vector) to answer a user query."""
+    # Resolve relative follow-ups or ordinals from conversation history
+    query = resolve_query_from_history(query, history)
+    
     # 1. Structural context from Graph
     graph_context = get_graph_context(query, nodes, links)
     
-    # 2. Semantic context from Vector DB
-    vector_context = get_vector_context(query)
+    # 2. Semantic context from Vector DB (with strict timeout)
+    vector_context = get_vector_context_with_timeout(query)
     
     if not graph_context and not vector_context:
         return "I couldn't find any information about those entities in the graph or the indexed documents. Could you try adding more text to build the knowledge base?"
@@ -1303,6 +1546,10 @@ def query_graph_rag(query: str, nodes: list, links: list, history: list = None) 
     )
 
     # Use the existing LLM infrastructure
+    if GEMINI_API_KEY:
+        out = call_gemini(prompt)
+        if out: return out.strip()
+
     if USE_LOCAL_GGUF:
         out = call_local_gguf(prompt)
         if out: return out.strip()
@@ -1324,7 +1571,8 @@ def query_graph_rag(query: str, nodes: list, links: list, history: list = None) 
         except Exception as e:
             logger.error(f"GraphRAG HF call failed: {e}")
             
-    return "I found the facts in the graph, but I'm having trouble connecting to the AI to generate a response."
+    # Highly elegant local/offline fallback instead of error message
+    return generate_offline_fallback_answer(query, graph_context, vector_context)
 
 def generate_graph_report(nodes: list, links: list, communities: int) -> str:
     """Generates a professional AI analysis of the graph's structure and insights."""
