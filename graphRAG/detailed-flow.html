@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GraphRAG — Deep Detailed Architecture</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0b1120;
+    color: #e2e8f0;
+    font-family: system-ui, -apple-system, sans-serif;
+    padding: 30px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .wrapper { max-width: 1100px; width: 100%; }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #f1f5f9;
+    margin-bottom: 4px;
+  }
+  .h1-sub {
+    color: #64748b;
+    font-size: 14px;
+    margin-bottom: 40px;
+    border-bottom: 1px solid #1e293b;
+    padding-bottom: 16px;
+  }
+
+  /* ===== SECTION HEADERS ===== */
+  .sec {
+    margin: 48px 0 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .sec h2 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #f1f5f9;
+  }
+  .sec .badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 12px;
+    border-radius: 20px;
+    background: #1e293b;
+    color: #94a3b8;
+  }
+
+  /* ===== SVG ===== */
+  svg { width: 100%; height: auto; filter: drop-shadow(0 4px 12px rgba(0,0,0,.4)); margin: 16px 0; }
+
+  /* ===== DETAIL BLOCKS ===== */
+  .detail-block {
+    background: #131c31;
+    border: 1px solid #1e293b;
+    border-radius: 14px;
+    padding: 24px 28px;
+    margin: 16px 0;
+  }
+  .detail-block h3 {
+    font-size: 17px;
+    font-weight: 600;
+    color: #f1f5f9;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .detail-block h3 .step-num {
+    background: #2563eb;
+    color: #fff;
+    font-weight: 700;
+    font-size: 13px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  table th {
+    text-align: left;
+    color: #64748b;
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    padding: 8px 12px;
+    border-bottom: 1px solid #1e293b;
+  }
+  table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #1a2338;
+    vertical-align: top;
+  }
+  table tr:last-child td { border: none; }
+  .col-step { color: #60a5fa; width: 60px; font-weight: 600; white-space: nowrap; }
+  .col-what { width: 35%; }
+  .col-code { font-family: 'Cascadia Code', 'JetBrains Mono', monospace; font-size: 12px; color: #a5b4fc; width: 25%; }
+  .col-note { color: #94a3b8; font-size: 13px; }
+  .tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 8px;
+    border-radius: 10px;
+    margin-right: 4px;
+  }
+  .tag-blue   { background: #1e3a5f; color: #93c5fd; }
+  .tag-green  { background: #14532d; color: #86efac; }
+  .tag-orange { background: #5c3c14; color: #fdba74; }
+  .tag-purple { background: #3b1f5e; color: #c4a5f1; }
+  .tag-red    { background: #5c1a1a; color: #fca5a5; }
+  .tag-teal   { background: #134e4a; color: #5eead4; }
+  .tag-pink   { background: #5c1a3a; color: #f9a8d4; }
+
+  .code-ref {
+    font-family: 'Cascadia Code', 'JetBrains Mono', monospace;
+    font-size: 12px;
+    background: #0b1120;
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: #a5b4fc;
+  }
+  .callout {
+    background: #1a2338;
+    border-left: 3px solid #f59e0b;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin: 12px 0;
+    font-size: 14px;
+    color: #cbd5e1;
+    line-height: 1.5;
+  }
+  .callout-blue {
+    border-left-color: #3b82f6;
+  }
+  .callout-green {
+    border-left-color: #22c55e;
+  }
+  .callout-red {
+    border-left-color: #ef4444;
+  }
+  .callout-purple {
+    border-left-color: #a855f7;
+  }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .grid-2 .card {
+    background: #0b1120;
+    border: 1px solid #1e293b;
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .grid-2 .card h4 {
+    font-size: 14px;
+    color: #f1f5f9;
+    margin-bottom: 8px;
+  }
+  .grid-2 .card p, .grid-2 .card li {
+    font-size: 13px;
+    color: #94a3b8;
+    line-height: 1.5;
+  }
+  .grid-2 .card ul { padding-left: 18px; }
+  .grid-2 .card li { margin-bottom: 4px; }
+
+  .flow-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #64748b;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    margin: 28px 0 8px;
+  }
+  @media (max-width:768px) {
+    .grid-2 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+<h1>🔍 Knowledge Graph Builder — Full Architecture</h1>
+<p class="h1-sub">Deep dive into every component, function, and data flow across all 3 modes: Quick, Workspace, and Hybrid RAG Chat.</p>
+
+<!-- ===== ARCHITECTURE OVERVIEW ===== -->
+<div class="sec"><h2>Architecture Overview</h2><span class="badge">4 layers</span></div>
+
+<svg viewBox="0 0 1000 520" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10Z" fill="#60a5fa"/></marker>
+    <marker id="a-g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10Z" fill="#34d399"/></marker>
+    <marker id="a-p" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10Z" fill="#a78bfa"/></marker>
+    <filter id="g"><feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#2563eb" flood-opacity=".4"/></filter>
+  </defs>
+
+  <!-- Layer 1: Browser -->
+  <rect x="30" y="10" width="940" height="90" rx="10" fill="#1e293b" opacity=".5"/>
+  <text x="50" y="34" fill="#64748b" font-size="11" font-weight="600" letter-spacing=".1em">LAYER 1</text>
+  <rect x="50" y="44" width="280" height="44" rx="8" fill="#2563eb" filter="url(#g)"/>
+  <text x="190" y="70" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">🌐 Browser — knowledge_graph.html</text>
+  <text x="190" y="84" text-anchor="middle" fill="#93c5fd" font-size="10">D3.js graph · Chat panel · Workspace sidebar · localStorage</text>
+
+  <rect x="360" y="44" width="280" height="44" rx="8" fill="#2563eb" filter="url(#g)"/>
+  <text x="500" y="70" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">📤 fetch() → JSON over HTTP</text>
+  <text x="500" y="84" text-anchor="middle" fill="#93c5fd" font-size="10">POST /generate · POST /query · POST /ingest · etc.</text>
+
+  <rect x="670" y="44" width="280" height="44" rx="8" fill="#2563eb" filter="url(#g)"/>
+  <text x="810" y="70" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">💾 localStorage &amp; IndexedDB</text>
+  <text x="810" y="84" text-anchor="middle" fill="#93c5fd" font-size="10">recentGraphs (max 10) · Auto-save · Quick mode persistence</text>
+
+  <path d="M190,88 L190,120" stroke="#60a5fa" stroke-width="2" marker-end="url(#a)"/>
+  <path d="M500,88 L500,120" stroke="#60a5fa" stroke-width="2" marker-end="url(#a)"/>
+  <path d="M810,88 L810,120" stroke="#60a5fa" stroke-width="2" marker-end="url(#a)"/>
+
+  <!-- Layer 2: Flask -->
+  <rect x="30" y="120" width="940" height="100" rx="10" fill="#1e293b" opacity=".5"/>
+  <text x="50" y="144" fill="#64748b" font-size="11" font-weight="600" letter-spacing=".1em">LAYER 2</text>
+  <rect x="50" y="154" width="900" height="54" rx="8" fill="#7c3aed" filter="url(#g)"/>
+  <text x="500" y="176" text-anchor="middle" fill="#fff" font-size="14" font-weight="600">🐍 Flask Server — app.py (338 lines, 14 routes)</text>
+  <text x="500" y="196" text-anchor="middle" fill="#ddd6fe" font-size="11">
+    /generate │ /query │ /describe_node │ /drill_down │ /generate_report │ /export_pdf │ /save_graph │ /delete_graph
+    │ /projects (GET|POST) │ /projects/&lt;id&gt; (DELETE) │ /ingest │ /merge_workspace │ /model_info │ /
+  </text>
+
+  <path d="M500,208 L500,240" stroke="#a78bfa" stroke-width="2" marker-end="url(#a-p)"/>
+
+  <!-- Layer 3: Core Engine -->
+  <rect x="30" y="240" width="940" height="160" rx="10" fill="#1e293b" opacity=".5"/>
+  <text x="50" y="264" fill="#64748b" font-size="11" font-weight="600" letter-spacing=".1em">LAYER 3</text>
+  <rect x="50" y="274" width="440" height="116" rx="8" fill="#059669" filter="url(#g)"/>
+  <text x="270" y="296" text-anchor="middle" fill="#fff" font-size="14" font-weight="600">⚙️ Core Engine — generate_kg.py (1813 lines)</text>
+  <text x="270" y="316" text-anchor="middle" fill="#a7f3d0" font-size="11">generate_graph_from_text() — orchestrator (entry point)</text>
+  <text x="270" y="334" text-anchor="middle" fill="#a7f3d0" font-size="11">get_augmented_text() → call_*_inference() → parse_triples_from_text()</text>
+  <text x="270" y="352" text-anchor="middle" fill="#a7f3d0" font-size="11">triples_to_graph() → compute_communities() → generate_graph_title()</text>
+  <text x="270" y="370" text-anchor="middle" fill="#a7f3d0" font-size="11">query_graph_rag() · describe_node() · drill_down_node() · merge_graphs()</text>
+
+  <rect x="510" y="274" width="440" height="60" rx="8" fill="#059669" filter="url(#g)"/>
+  <text x="730" y="296" text-anchor="middle" fill="#fff" font-size="14" font-weight="600">🗄️ Database Layer — database.py (125 lines)</text>
+  <text x="730" y="316" text-anchor="middle" fill="#a7f3d0" font-size="11">SQLite workspace.db: projects · documents · graphs (JSON column)</text>
+  <text x="730" y="334" text-anchor="middle" fill="#a7f3d0" font-size="11">init_db() runs at import · ON DELETE CASCADE</text>
+
+  <!-- SerpAPI icon -->
+  <rect x="510" y="344" width="200" height="46" rx="8" fill="#059669"/>
+  <text x="610" y="364" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">🔍 SerpAPI integration</text>
+  <text x="610" y="382" text-anchor="middle" fill="#a7f3d0" font-size="10">extract_key_entities() → search_serpapi() → get_augmented_text()</text>
+
+  <!-- LLM icon -->
+  <rect x="730" y="344" width="220" height="46" rx="8" fill="#059669"/>
+  <text x="840" y="364" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">🤖 LLM Fallback Chain</text>
+  <text x="840" y="382" text-anchor="middle" fill="#a7f3d0" font-size="10">GGUF → Local → HF → Fallback HF → Regex</text>
+
+  <path d="M500,400 L500,430" stroke="#34d399" stroke-width="2" marker-end="url(#a-g)"/>
+  <path d="M730,390 L730,430" stroke="#34d399" stroke-width="2" marker-end="url(#a-g)"/>
+
+  <!-- Layer 4: Storage -->
+  <rect x="30" y="430" width="940" height="78" rx="10" fill="#1e293b" opacity=".5"/>
+  <text x="50" y="454" fill="#64748b" font-size="11" font-weight="600" letter-spacing=".1em">LAYER 4</text>
+
+  <rect x="50" y="464" width="220" height="34" rx="8" fill="#1e3a5f"/>
+  <text x="160" y="485" text-anchor="middle" fill="#93c5fd" font-size="12">🧠 ChromaDB vdb_storage/</text>
+
+  <rect x="290" y="464" width="220" height="34" rx="8" fill="#1e3a5f"/>
+  <text x="400" y="485" text-anchor="middle" fill="#93c5fd" font-size="12">🗃️ SQLite workspace.db</text>
+
+  <rect x="530" y="464" width="220" height="34" rx="8" fill="#1e3a5f"/>
+  <text x="640" y="485" text-anchor="middle" fill="#93c5fd" font-size="12">💾 localStorage (browser)</text>
+
+  <rect x="770" y="464" width="180" height="34" rx="8" fill="#1e3a5f"/>
+  <text x="860" y="485" text-anchor="middle" fill="#93c5fd" font-size="12">📄 graph_data.json</text>
+</svg>
+
+<!-- ===================================================================== -->
+<!-- FLOW 1: QUICK MODE -->
+<!-- ===================================================================== -->
+<div class="sec"><h2>Flow 1 — Quick Mode: Text → Knowledge Graph</h2><span class="badge">10 steps</span></div>
+<p style="color:#94a3b8;font-size:14px;margin-bottom:12px">
+  The user pastes text into the left sidebar and clicks <strong>"Generate Graph"</strong>. 
+  This triggers a <span class="code-ref">POST /generate</span> request. Everything happens server-side in ~10–20s.
+</p>
+
+<svg viewBox="0 0 960 820" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10Z" fill="#60a5fa"/></marker>
+    <filter id="gb"><feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#2563eb" flood-opacity=".4"/></filter>
+  </defs>
+
+  <!-- Box 1 -->
+  <rect x="80" y="10" width="800" height="50" rx="10" fill="#1e293b" stroke="#3b82f6" stroke-width="1"/>
+  <text x="480" y="30" text-anchor="middle" fill="#93c5fd" font-size="11" font-weight="600">① BROWSER</text>
+  <text x="480" y="48" text-anchor="middle" fill="#f1f5f9" font-size="13">User pastes text → clicks "Generate Graph" → fetch(POST /generate, {text})</text>
+
+  <path d="M480,60 L480,90" stroke="#60a5fa" stroke-width="2" marker-end="url(#b)"/>
+
+  <!-- Box 2 -->
+  <rect x="200" y="90" width="560" height="44" rx="8" fill="#2563eb" filter="url(#gb)"/>
+  <text x="480" y="108" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">② Flask validates request → calls generate_graph_from_text(text)</text>
+  <text x="480" y="124" text-anchor="middle" fill="#93c5fd" font-size="10">app.py:38-63 → checks 'text' field, returns 400 if missing</text>
+
+  <path d="M480,134 L480,164" stroke="#60a5fa" stroke-width="2" marker-end="url(#b)"/>
+
+  <!-- Box 3a -->
+  <rect x="60" y="164" width="840" height="52" rx="8" fill="#059669" stroke="#34d399" stroke-width="1"/>
+  <text x="480" y="184" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">③ Step A — Text Augmentation (SerpAPI)</text>
+  <text x="480" y="204" text-anchor="middle" fill="#a7f3d0" font-size="11">get_augmented_text() : regex-extract up to 3 capitalized entities → search_serpapi() each → append "ADDITIONAL KNOWLEDGE FROM SEARCH"</text>
+
+  <path d="M480,216 L480,246" stroke="#34d399" stroke-width="2" marker-end="url(#b)"/>
+
+  <!-- Box 3b - LLM Chain -->
+  <rect x="60" y="246" width="840" height="80" rx="8" fill="#059669" stroke="#34d399" stroke-width="1"/>
+  <text x="480" y="266" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">④ Step B — Triple Extraction (LLM Fallback Chain)</text>
+  <text x="480" y="286" text-anchor="middle" fill="#a7f3d0" font-size="11">
+    Tier 1: GGUF → Tier 2: Local LLM (Ollama) → Tier 3: HuggingFace (configured model)
+  </text>
+  <text x="480" y="306" text-anchor="middle" fill="#a7f3d0" font-size="11">
+    Tier 4: HF Fallback (Qwen 72B) → Tier 5: Regex fallback_extract() — ~1-10 triples
+  </text>
+  <text x="480" y="320" text-anchor="middle" fill="#fca5a5" font-size="10">
+    Each tier: LLM prompt → parse_triples_from_text() → if empty, try next tier
+  </text>
+
+  <path d="M480,326 L480,356" stroke="#34d399" stroke-width="2" marker-end="url(#b)"/>
+
+  <!-- Box 3c -->
+  <rect x="180" y="356" width="600" height="60" rx="8" fill="#059669"/>
+  <text x="480" y="376" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">⑤ Step C — Parse LLM Output → Triples</text>
+  <text x="480" y="396" text-anchor="middle" fill="#a7f3d0" font-size="11">parse_triples_from_text(): strip ``` → try JSON array → truncated array regex → line-based fallback</text>
+  <text x="480" y="412" text-anchor="middle" fill="#a7f3d0" font-size="10">Returns list of (subject, predicate, object) tuples</text>
+
+  <path d="M480,416 L480,446" stroke="#34d399" stroke-width="2" marker-end="url(#b)"/>
+
+  <!-- Box 4 -->
+  <rect x="60" y="446" width="840" height="72" rx="8" fill="#059669"/>
+  <text x="480" y="466" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">⑥ Step D — Build Graph (triples_to_graph)</text>
+  <text x="480" y="486" text-anchor="middle" fill="#a7f3d0" font-size="11">
+    Alias mapping ("Musk"→"Elon Musk") → normalize_entity() → infer_type() (PERSON/ORG/LOCATION/etc)
+  </text>
+  <text x="480" y="502" text-anchor="middle" fill="#a7f3d0" font-size="11">
+    Build nodes[] + edges[] → dedup edges by (source, target, label) → skip self-loops
+  </text>
+  <text x="480" y="514" text-anchor="middle" fill="#fca5a5" font-size="10">
+    infer_type() checks: STOP_WORDS → person_titles → ai_models → product → org → location → event → ... → CONCEPT
+  </text>
+
+  <path d="M480,518 L480,548" stroke="#34d399" stroke-width="2" marker-end="url(#b)"/>
+
+  <!-- Box 5 -->
+  <rect x="180" y="548" width="600" height="44" rx="8" fill="#059669"/>
+  <text x="480" y="566" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">⑦ Step E — Community Detection + Title</text>
+  <text x="480" y="584" text-anchor="middle" fill="#a7f3d0" font-size="11">compute_communities() = DFS connected components · generate_graph_title() = LLM → single word, max 12 chars</text>
+
+  <path d="M480,592 L480,618" stroke="#34d399" stroke-width="2" marker-end="url(#b)"/>
+
+  <!-- Box 6 -->
+  <rect x="180" y="618" width="600" height="44" rx="8" fill="#7c3aed"/>
+  <text x="480" y="636" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">⑧ Step F — Index in ChromaDB (async, background thread)</text>
+  <text x="480" y="654" text-anchor="middle" fill="#ddd6fe" font-size="11">index_text_in_vdb(): split by \n\n or 800-char chunks → upsert with chunk IDs to "knowledge_graph_chunks" collection</text>
+
+  <path d="M480,662 L480,690" stroke="#a78bfa" stroke-width="2" marker-end="url(#b)"/>
+
+  <!-- Box 7 -->
+  <rect x="120" y="690" width="720" height="50" rx="10" fill="#d97706" stroke="#f59e0b" stroke-width="1"/>
+  <text x="480" y="710" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">⑨ Flask returns JSON → ⑩ Browser renders D3.js graph</text>
+  <text x="480" y="728" text-anchor="middle" fill="#fed7aa" font-size="11">
+    Response: {nodes, links, communities, extraction_method, search_augmented, title}
+  </text>
+
+  <!-- Side arrow to DB -->
+  <path d="M840,637 L910,637 L910,410" stroke="#475569" stroke-width="1.5" stroke-dasharray="4" fill="none"/>
+  <text x="918" y="520" fill="#64748b" font-size="10" transform="rotate(90,918,520)">Index in VDB background thread</text>
+</svg>
+
+<div class="detail-block">
+  <h3><span class="step-num">③</span> Text Augmentation — Deep Dive</h3>
+  <table>
+    <tr><th>Function</th><th>What it does</th><th>Code</th></tr>
+    <tr>
+      <td><span class="code-ref">extract_key_entities(text)</span></td>
+      <td>Regex <span class="code-ref">\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b</span> finds capitalized phrases. Filters out stop words {"The", "A", "An", ...}. Returns top 3.</td>
+      <td><span class="code-ref">generate_kg.py:271-281</span></td>
+    </tr>
+    <tr>
+      <td><span class="code-ref">search_serpapi(entity)</span></td>
+      <td>Google Search API via serpapi library. Gets organic_results[:3] snippets + knowledge_graph description. Returns combined string.</td>
+      <td><span class="code-ref">generate_kg.py:236-268</span></td>
+    </tr>
+    <tr>
+      <td><span class="code-ref">get_augmented_text(text)</span></td>
+      <td>Orchestrates: extract entities → search each → append as "ADDITIONAL KNOWLEDGE FROM SEARCH" section. If SerpAPI key is placeholder/missing, returns original text unchanged.</td>
+      <td><span class="code-ref">generate_kg.py:284-303</span></td>
+    </tr>
+  </table>
+</div>
+
+<div class="detail-block">
+  <h3><span class="step-num">④</span> LLM Fallback Chain — Deep Dive</h3>
+  <table>
+    <tr><th>Tier</th><th>Condition</th><th>Function</th><th>Details</th></tr>
+    <tr>
+      <td><span class="tag tag-purple">1</span></td>
+      <td><span class="code-ref">USE_LOCAL_GGUF=true</span></td>
+      <td><span class="code-ref">call_local_gguf()</span></td>
+      <td class="col-note">Loads GGUF via <code>llama-cpp-python</code> (cached in <code>_LOCAL_MODEL_INSTANCE</code>, module-level). Prompt: Llama <code>[INST]</code> format. <code>max_tokens=1024, temp=0.1, stop=[&lt;/s&gt;]</code>. n_ctx=2048. Requires C++ build tools.</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-orange">2</span></td>
+      <td><span class="code-ref">USE_LOCAL_LLM=true</span></td>
+      <td><span class="code-ref">call_local_llm()</span></td>
+      <td class="col-note">OpenAI-compatible HTTP POST to <code>LOCAL_LLM_URL</code> (default <code>http://localhost:8080/v1/chat/completions</code>). Sends chat prompt, expects <code>choices[0].message.content</code>. Works with Ollama, llama.cpp server, etc.</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-blue">3</span></td>
+      <td><span class="code-ref">HF_API</span> + <span class="code-ref">HF_MODEL</span> set</td>
+      <td><span class="code-ref">call_hf_inference()</span></td>
+      <td class="col-note">Uses <code>huggingface_hub.InferenceClient.chat_completion()</code> with strict prompt: JSON array only, no markdown, 6 rules. 4000 max_tokens. Exact prompt at line 326-338.</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-red">4</span></td>
+      <td>HF returns "model_not_supported"</td>
+      <td><span class="code-ref">call_hf_inference()</span> retry</td>
+      <td class="col-note">Auto-retries with <code>FALLBACK_HF_MODEL = "Qwen/Qwen2.5-72B-Instruct"</code>. Only fires if the configured model is unavailable on HF's endpoint.</td>
+    </tr>
+    <tr>
+      <td><span class="tag tag-pink">5</span></td>
+      <td>All LLMs fail/unparseable</td>
+      <td><span class="code-ref">fallback_extract()</span></td>
+      <td class="col-note">Regex-based heuristic. ~45 relationship patterns (CEO_OF, BORN_IN, CHILD_OF, ALLY_OF, etc). Entity pattern: <code>[A-Z][A-Za-z0-9]*(?:[ \-][A-Z][A-Za-z0-9]*)*</code>. Generates 1-10 triples. Full patterns at lines 572-917.</td>
+    </tr>
+  </table>
+  <div class="callout callout-blue">
+    <strong>Extraction prompt</strong> (HF tier): "You are a precision Knowledge Graph engine... Return ONLY a raw JSON array... RULES: 1. Entity names = clean proper nouns only... 6. NEVER include generic words like 'Because', 'Although'..." — the prompt is <strong>~30 lines</strong> of instructions with 14 allowed predicates (CEO, FOUNDER, BORN_IN, CHILD_OF, etc.).
+  </div>
+</div>
+
+<div class="detail-block">
+  <h3><span class="step-num">⑥</span> Graph Construction — Deep Dive</h3>
+  <table>
+    <tr><th>Step</th><th>What happens</th><th>Key detail</th></tr>
+    <tr>
+      <td>Alias Resolution</td>
+      <td>Pre-built map: {"belly":"Isabel Conklin", "isabel":"Isabel Conklin"} + <code>alias_predicates</code> = {KNOWN_AS, ALSO_KNOWN_AS, ALIAS}</td>
+      <td>If a triple's predicate is an alias predicate, the objects become alias entries. Alias edges themselves are skipped.</td>
+    </tr>
+    <tr>
+      <td>Entity Normalization</td>
+      <td><code>normalize_entity()</code> resolves aliases, merges fragments ("Musk"→"Elon Musk" if seen), strips leading "The " if not formal</td>
+      <td>Two-word+ entities are registered as canonical names for fragment merging.</td>
+    </tr>
+    <tr>
+      <td>Type Inference</td>
+      <td><code>infer_type()</code> checks 10 categories in priority order: STOP_WORDS→PERSON (title words)→AI_MODEL→PRODUCT→ORGANIZATION→LOCATION→EVENT→LEGISLATION→GOVERNMENT→TECHNOLOGY→PERSON (2-3 cap words)→CONCEPT</td>
+      <td>Each category has its own keyword set. Eg org_words = {'university','company','corp','inc','llc','ltd','government','court',...}</td>
+    </tr>
+    <tr>
+      <td>Edge Dedup</td>
+      <td>Before adding: check if any existing edge has (source==s_id AND target==o_id) OR (source==o_id AND target==s_id) with same label</td>
+      <td>This prevents A→B and B→A with same relationship from duplicating.</td>
+    </tr>
+  </table>
+</div>
+
+<!-- ===================================================================== -->
+<!-- FLOW 2: HYBRID RAG -->
+<!-- ===================================================================== -->
+<div class="sec"><h2>Flow 2 — Ask a Question (Hybrid GraphRAG)</h2><span class="badge">7 steps</span></div>
+<p style="color:#94a3b8;font-size:14px;margin-bottom:12px">
+  The user types a question in the chat panel. The system combines <strong>graph structure</strong> (who's connected to whom) 
+  with <strong>semantic vector search</strong> (original text paragraphs) to build a super-context for the LLM.
+</p>
+
+<svg viewBox="0 0 960 680" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10Z" fill="#60a5fa"/></marker>
+    <filter id="gc"><feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#d97706" flood-opacity=".4"/></filter>
+  </defs>
+
+  <rect x="160" y="10" width="640" height="44" rx="10" fill="#1e293b" stroke="#f59e0b" stroke-width="1"/>
+  <text x="480" y="28" text-anchor="middle" fill="#fdba74" font-size="11" font-weight="600">① BROWSER</text>
+  <text x="480" y="44" text-anchor="middle" fill="#f1f5f9" font-size="13">User types question → POST /query {query, nodes, links, history}</text>
+
+  <path d="M480,54 L480,84" stroke="#fb923c" stroke-width="2" marker-end="url(#c)"/>
+
+  <rect x="280" y="84" width="400" height="40" rx="8" fill="#d97706" filter="url(#gc)"/>
+  <text x="480" y="100" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">② Flask → query_graph_rag(q, nodes, links, history)</text>
+  <text x="480" y="116" text-anchor="middle" fill="#fed7aa" font-size="10">app.py:87-105</text>
+
+  <path d="M480,124 L480,164" stroke="#fb923c" stroke-width="2" marker-end="url(#c)"/>
+
+  <!-- Split: Graph side + Vector side -->
+  <rect x="40" y="164" width="420" height="60" rx="8" fill="#059669"/>
+  <text x="250" y="184" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">③ Graph Context (structural)</text>
+  <text x="250" y="204" text-anchor="middle" fill="#a7f3d0" font-size="11">get_graph_context(): keyword-match nodes → 1-hop neighbors → facts list</text>
+  <text x="250" y="218" text-anchor="middle" fill="#a7f3d0" font-size="10">If query is global ("summarize"), include top-15 nodes + 30 edges</text>
+
+  <rect x="500" y="164" width="420" height="60" rx="8" fill="#7c3aed"/>
+  <text x="710" y="184" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">④ Vector Context (semantic)</text>
+  <text x="710" y="204" text-anchor="middle" fill="#ddd6fe" font-size="11">get_vector_context(): ChromaDB similarity search on question → top-3 chunks</text>
+  <text x="710" y="218" text-anchor="middle" fill="#ddd6fe" font-size="10">Wrapped in get_vector_context_with_timeout() — 500ms strict timeout (threading)</text>
+
+  <path d="M250,224 L250,260" stroke="#34d399" stroke-width="2" marker-end="url(#c)"/>
+  <path d="M710,224 L710,260" stroke="#a78bfa" stroke-width="2" marker-end="url(#c)"/>
+
+  <!-- Merge -->
+  <rect x="160" y="260" width="640" height="50" rx="8" fill="#2563eb"/>
+  <text x="480" y="280" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">⑤ Build Super-Context Prompt</text>
+  <text x="480" y="298" text-anchor="middle" fill="#93c5fd" font-size="11">graph_context + vector_context + conversation_history[-5:] + RULES (3 follow-ups mandatory)</text>
+
+  <path d="M480,310 L480,350" stroke="#60a5fa" stroke-width="2" marker-end="url(#c)"/>
+
+  <rect x="280" y="350" width="400" height="44" rx="8" fill="#d97706"/>
+  <text x="480" y="368" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">⑥ LLM Call (same priority chain)</text>
+  <text x="480" y="384" text-anchor="middle" fill="#fed7aa" font-size="11">GGUF → Local LLM → HuggingFace (max_tokens=1000)</text>
+
+  <path d="M480,394 L480,434" stroke="#fb923c" stroke-width="2" marker-end="url(#c)"/>
+
+  <rect x="280" y="434" width="400" height="44" rx="8" fill="#d97706"/>
+  <text x="480" y="452" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">⑦ If all LLMs fail → offline fallback</text>
+  <text x="480" y="468" text-anchor="middle" fill="#fed7aa" font-size="11">generate_offline_fallback_answer(): formats graph facts as Markdown with emoji bullet points + 3 follow-ups</text>
+
+  <path d="M480,478 L480,510" stroke="#fb923c" stroke-width="2" marker-end="url(#c)"/>
+
+  <rect x="260" y="510" width="440" height="50" rx="10" fill="#d97706" stroke="#f59e0b" stroke-width="1"/>
+  <text x="480" y="530" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">Flask returns {answer} → Browser renders Markdown in Chat Panel</text>
+  <text x="480" y="546" text-anchor="middle" fill="#fed7aa" font-size="10">Last 5 turn history maintained for follow-up context (resolve_query_from_history())</text>
+</svg>
+
+<div class="detail-block">
+  <h3><span class="step-num">③</span> Graph Context — How It Works</h3>
+  <div class="callout callout-green">
+    <strong>Global query detection:</strong> The function <span class="code-ref">get_graph_context()</span> checks for keywords like "summarize", "overall", "everything", "relationships", "structure". If found AND query is under 15 words → <strong>global mode</strong>: includes top 15 nodes + top 30 edges. ALSO: if the graph has ≤ 15 nodes, it auto-switches to global mode.
+  </div>
+  <div class="callout callout-green">
+    <strong>Entity matching:</strong> For specific queries, it matches the query text against node labels. Tries exact match first, then partial keyword overlap. For each matched node, collects all edges where node appears as source or target (1-hop neighbors). Returns <code>ENTITIES:</code> + <code>RELATIONSHIPS:</code> sections.
+  </div>
+</div>
+
+<div class="detail-block">
+  <h3><span class="step-num">④</span> Vector Context — How It Works</h3>
+  <div class="grid-2">
+    <div class="card">
+      <h4>Chunking strategy</h4>
+      <p>The original text is split by <code>\n\n</code> (paragraphs). If it's one long paragraph (&gt;800 chars), it uses 800-char sliding windows with 600-char overlap. Each chunk gets ID: <code>chunk_{first10alphanumeric}_{index}</code>.</p>
+    </div>
+    <div class="card">
+      <h4>Query with timeout</h4>
+      <p><span class="code-ref">get_vector_context_with_timeout()</span> wraps the ChromaDB query in a daemon thread with 500ms timeout. If the DB is slow/stuck, the vector context is skipped rather than blocking the response.</p>
+    </div>
+    <div class="card">
+      <h4>Similarity search</h4>
+      <p>ChromaDB collection <code>"knowledge_graph_chunks"</code> with <code>cosine</code> distance. Uses DefaultEmbeddingFunction (SentenceTransformers) locally, ONNXMiniLM_L6_V2 on Vercel. Returns top 3 chunks.</p>
+    </div>
+    <div class="card">
+      <h4>Super-context prompt</h4>
+      <p>The final prompt sent to the LLM contains: <strong>GRAPH CONTEXT</strong> (facts like "Paul Atreides CHILD_OF Duke Leto") + <strong>VECTOR CONTEXT</strong> (narrative paragraphs) + <strong>CONVERSATION HISTORY</strong> (last 5 turns) + <strong>RULES</strong> (detailed answer, follow-ups mandatory).</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===================================================================== -->
+<!-- FLOW 3: WORKSPACE MODE -->
+<!-- ===================================================================== -->
+<div class="sec"><h2>Flow 3 — Workspace / Multi-Document Mode</h2><span class="badge">5 steps</span></div>
+<p style="color:#94a3b8;font-size:14px;margin-bottom:12px">
+  Unlike Quick Mode (browser-only localStorage), Workspace Mode persists everything to SQLite. 
+  You can create projects, ingest multiple documents, generate a graph per document, and merge them.
+</p>
+
+<svg viewBox="0 0 960 420" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="d" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10Z" fill="#a78bfa"/></marker>
+    <filter id="gd"><feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#7c3aed" flood-opacity=".4"/></filter>
+  </defs>
+
+  <rect x="160" y="10" width="640" height="44" rx="8" fill="#7c3aed" filter="url(#gd)"/>
+  <text x="480" y="28" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">① POST /projects {name}</text>
+  <text x="480" y="42" text-anchor="middle" fill="#ddd6fe" font-size="11">database.create_project() → INSERT into projects → returns {id, name}</text>
+
+  <path d="M480,54 L480,84" stroke="#a78bfa" stroke-width="2" marker-end="url(#d)"/>
+
+  <rect x="160" y="84" width="640" height="58" rx="8" fill="#7c3aed"/>
+  <text x="480" y="102" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">② POST /ingest {project_id, text, filename}</text>
+  <text x="480" y="120" text-anchor="middle" fill="#ddd6fe" font-size="11">generate_graph_from_text(text) → database.add_document() + database.save_graph() → index_text_in_vdb() background</text>
+  <text x="480" y="134" text-anchor="middle" fill="#fca5a5" font-size="10">Full extraction pipeline runs: Augment → LLM → Parse → Graph → Community → Title → Store</text>
+
+  <path d="M480,142 L480,182" stroke="#a78bfa" stroke-width="2" marker-end="url(#d)"/>
+
+  <rect x="260" y="182" width="440" height="44" rx="8" fill="#7c3aed"/>
+  <text x="480" y="200" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">③ Repeat for N documents</text>
+  <text x="480" y="216" text-anchor="middle" fill="#ddd6fe" font-size="11">Each → documents table row + graphs table row (graph_json = full JSON)</text>
+
+  <path d="M480,226 L480,256" stroke="#a78bfa" stroke-width="2" marker-end="url(#d)"/>
+
+  <rect x="260" y="256" width="440" height="44" rx="8" fill="#7c3aed"/>
+  <text x="480" y="274" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">④ POST /merge_workspace {project_id}</text>
+  <text x="480" y="292" text-anchor="middle" fill="#ddd6fe" font-size="11">database.get_project_graphs() → merge_graphs() = union nodes (lowercase dedup) + edges (source,label,target dedup)</text>
+
+  <path d="M480,300 L480,330" stroke="#a78bfa" stroke-width="2" marker-end="url(#d)"/>
+
+  <rect x="280" y="330" width="400" height="50" rx="10" fill="#7c3aed" stroke="#a78bfa" stroke-width="1"/>
+  <text x="480" y="348" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">⑤ Returns merged {nodes, links, communities}</text>
+  <text x="480" y="366" text-anchor="middle" fill="#ddd6fe" font-size="11">DELETE /projects/&lt;id&gt; cascades: projects → documents → graphs</text>
+</svg>
+
+<div class="detail-block">
+  <h3><span class="step-num">④</span> Merge Logic — Deep Dive</h3>
+  <table>
+    <tr><th>Aspect</th><th>How it works</th></tr>
+    <tr><td>Node dedup</td><td>Keyed by <strong>lowercase label</strong>. First occurrence wins. If same label has different descriptions, they're concatenated with " | ". Aliases are merged.</td></tr>
+    <tr><td>Edge dedup</td><td>Keyed by <strong>(source_label, label, target_label)</strong> tuple. Old IDs are resolved to labels via <code>id_to_label</code> map within each sub-graph, then mapped to new merged IDs.</td></tr>
+    <tr><td>Community recalc</td><td>After merge, <code>compute_communities()</code> re-runs DFS connected components on the unified graph.</td></tr>
+  </table>
+  <div class="callout callout-purple">
+    <strong>Note:</strong> The merge only unions graphs — it does not run the extraction pipeline again. Each document's graph was generated independently during <code>POST /ingest</code>.
+  </div>
+</div>
+
+<!-- ===================================================================== -->
+<!-- OTHER FLOWS -->
+<!-- ===================================================================== -->
+<div class="sec"><h2>Other API Endpoints</h2><span class="badge">6 more</span></div>
+
+<div class="grid-2">
+  <div class="card">
+    <h4>🖱️ Describe Node <span class="code-ref">POST /describe_node</span></h4>
+    <p>Sends entity name + context text to LLM. If context is empty or short (&lt;30 chars), queries ChromaDB for richer context as fallback. If nothing available, uses world-knowledge prompting ("Provide a concise 1-2 sentence factual description..."). Returns plain text description.</p>
+  </div>
+  <div class="card">
+    <h4>🔍 Drill Down <span class="code-ref">POST /drill_down</span></h4>
+    <p>Deep-dive into one entity. Searches context_text for entity-matching paragraphs + ChromaDB for 5 additional chunks. Sends specialized prompt: "Extract niche relationships specifically involving '{entity}'" → parses triples → builds sub-graph. Falls back to <code>fallback_extract(target_entity=entity_name)</code> filtered to only triples involving that entity.</p>
+  </div>
+  <div class="card">
+    <h4>📊 Generate Report <span class="code-ref">POST /generate_report</span></h4>
+    <p>Computes graph metrics programmatically: top-5 degree centrality, isolated nodes (degree=0), bridge nodes (neighbors &gt;2 but &lt;n/2), relationship type counts. Sends all metrics to LLM with a 7-section report template (Title, Executive Overview, Structural Analysis, Relationship Explanation, Community Insights, Patterns, Recommendations). Returns Markdown report.</p>
+  </div>
+  <div class="card">
+    <h4>📄 Export PDF <span class="code-ref">POST /export_pdf</span></h4>
+    <p>Receives the Markdown report, strips markdown syntax (**, ###, #, * → -), sanitizes to Latin-1 encoding, renders via <code>fpdf2</code> with Helvetica font. Returns <code>Knowledge_Graph_Report.pdf</code> as downloadable attachment.</p>
+  </div>
+  <div class="card">
+    <h4>💾 Save / Delete Graph</h4>
+    <p><span class="code-ref">POST /save_graph</span>: writes current graph JSON to <code>graph_data.json</code> on disk (manual override). <span class="code-ref">POST /delete_graph</span>: reconstructs chunk IDs from the text and calls <code>vdb_collection.delete(ids=...)</code> to clean up ChromaDB.</p>
+  </div>
+  <div class="card">
+    <h4>ℹ️ Model Info <span class="code-ref">GET /model_info</span></h4>
+    <p>Returns the active model based on the priority chain. Frontend calls this on page load to show the live model status (not cached from previous graphs). JSON: {active_model, huggingface_model, use_local_gguf, use_local_llm}.</p>
+  </div>
+</div>
+
+<!-- ===================================================================== -->
+<!-- DATA PERSISTENCE -->
+<!-- ===================================================================== -->
+<div class="sec"><h2>Persistence &amp; Storage</h2><span class="badge">5 locations</span></div>
+
+<table>
+  <tr><th>Storage</th><th>Path</th><th>Lifetime</th><th>What's stored</th><th>Used by</th></tr>
+  <tr>
+    <td><span class="tag tag-blue">Browser localStorage</span></td>
+    <td><span class="code-ref">localStorage["recentGraphs"]</span></td>
+    <td>Browser only, max 10</td>
+    <td>Full graph JSON from each /generate</td>
+    <td>Recent Graphs tab in sidebar</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-green">ChromaDB (Vector DB)</span></td>
+    <td><span class="code-ref">graphRAG/vdb_storage/</span></td>
+    <td>Disk, gitignored</td>
+    <td>Chunked text paragraphs with embeddings (cosine, knowledge_graph_chunks collection)</td>
+    <td>Hybrid RAG, drill-down, describe-node</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-purple">SQLite (Workspace DB)</span></td>
+    <td><span class="code-ref">graphRAG/workspace.db</span></td>
+    <td>Disk, gitignored</td>
+    <td>3 tables: projects, documents, graphs (graph_json = TEXT column)</td>
+    <td>Workspace mode: /projects, /ingest, /merge_workspace</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-orange">JSON file</span></td>
+    <td><span class="code-ref">graphRAG/graph_data.json</span></td>
+    <td>Disk, gitignored</td>
+    <td>Manual save from frontend</td>
+    <td>Manual override / backup</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-red">GGUF model (optional)</span></td>
+    <td><span class="code-ref">graphRAG/models/Mistral-7B-Instruct-v0.3.Q4_K_M.gguf</span></td>
+    <td>~4GB, gitignored</td>
+    <td>Local LLM model file</td>
+    <td>Tier 1 of LLM fallback chain</td>
+  </tr>
+</table>
+
+<!-- ===================================================================== -->
+<!-- EDGE CASES & FALLBACKS -->
+<!-- ===================================================================== -->
+<div class="sec"><h2>Error Handling &amp; Edge Cases</h2><span class="badge">fallbacks</span></div>
+
+<div class="detail-block">
+  <table>
+    <tr><th>Failure</th><th>What happens</th><th>User sees</th></tr>
+    <tr><td>HF API key expired / 401</td><td>Logs "Hugging Face call failed", falls through to <code>fallback_extract()</code></td><td>Valid graph (just small, ~1-10 triples)</td></tr>
+    <tr><td>HF model returns non-JSON gibberish</td><td><code>parse_triples_from_text()</code> tries JSON → truncated JSON → line-based heuristic</td><td>Partial extraction, no data silently lost</td></tr>
+    <tr><td>HF output truncated (max_tokens hit)</td><td>JSON parser fails on incomplete array → regex fallback extracts individual objects</td><td>Some triples may be missing but no crash</td></tr>
+    <tr><td>ChromaDB init fails</td><td><code>vdb_collection = None</code>, all VDB calls are guarded</td><td>Graph still generated, RAG returns empty context</td></tr>
+    <tr><td>SerpAPI key missing</td><td><code>get_augmented_text()</code> returns original text unchanged</td><td>No web enrichment but extraction still runs</td></tr>
+    <tr><td>GGUF model not found</td><td><code>call_local_gguf()</code> catches exception, returns "" → next tier tried</td><td>Transparent fallback, no error shown</td></tr>
+    <tr><td>Vercel deployment (cold start)</td><td>VDB auto-routes to /tmp/vdb_storage, ONNX embedding instead of torch</td><td>~20-30s first request, ephemeral storage</td></tr>
+    <tr><td>Gemini API key set (dead config)</td><td><code>GEMINI_API_KEY</code> is loaded but never used in any prompt path</td><td>Nothing — it's a dead codepath</td></tr>
+  </table>
+</div>
+
+<!-- ===================================================================== -->
+<!-- CLI MODE -->
+<!-- ===================================================================== -->
+<div class="sec"><h2>CLI Mode (Bypasses Flask)</h2><span class="badge">offline</span></div>
+<p style="color:#94a3b8;font-size:14px;margin-bottom:12px">
+  You can run the <strong>same extraction pipeline</strong> from the command line without starting the Flask server.
+</p>
+<div class="detail-block">
+  <table>
+    <tr><th>Command</th><th>What it does</th></tr>
+    <tr><td><span class="code-ref">python generate_kg.py --text "Steve Jobs co-founded Apple..." --out result.json</span></td><td>Runs <code>generate_graph_from_text()</code>, writes JSON to file. Same fallback chain, same SerpAPI integration.</td></tr>
+    <tr><td><span class="code-ref">python generate_kg.py --file "text input/Dune.txt" --out dune-graph.json</span></td><td>Reads text from file, runs extraction, writes JSON. Same orchestrator as the web route.</td></tr>
+  </table>
+</div>
+
+<!-- ===================================================================== -->
+<!-- FILE MAP -->
+<!-- ===================================================================== -->
+<div class="sec"><h2>Complete File Map</h2><span class="badge">source of truth</span></div>
+
+<table>
+  <tr><th>File</th><th>Lines</th><th>Role</th></tr>
+  <tr><td><span class="code-ref">graphRAG/app.py</span></td><td>338</td><td>Flask server — 14 routes, request validation, response JSON</td></tr>
+  <tr><td><span class="code-ref">graphRAG/generate_kg.py</span></td><td>1813</td><td>Core engine — LLM extraction (5-tier fallback), graph construction, ChromaDB, RAG, PDF, community detection, CLI</td></tr>
+  <tr><td><span class="code-ref">graphRAG/database.py</span></td><td>125</td><td>SQLite workspace — projects/documents/graphs CRUD, auto-init on import</td></tr>
+  <tr><td><span class="code-ref">graphRAG/knowledge_graph.html</span></td><td>~2786</td><td>Single-page frontend — D3.js graph, chat panel, workspace sidebar, all CSS/JS inline</td></tr>
+  <tr><td><span class="code-ref">graphRAG/requirements.txt</span></td><td>10</td><td>Python deps (numpy&lt;2.0 pinned for ChromaDB compat, llama-cpp-python commented out)</td></tr>
+  <tr><td><span class="code-ref">graphRAG/.env</span></td><td>—</td><td>HF API key + model + SerpAPI key (CWD-sensitive loading)</td></tr>
+  <tr><td><span class="code-ref">./.env</span> (root)</td><td>—</td><td>Same keys + local LLM flags (USE_LOCAL_LLM, LOCAL_LLM_URL, USE_LOCAL_GGUF)</td></tr>
+</table>
+
+<p style="margin-top:48px; color:#475569; font-size:13px; text-align:center; border-top:1px solid #1e293b; padding-top:24px;">
+  Run it: <span class="code-ref">cd graphRAG &amp;&amp; python app.py</span> → open <span class="code-ref">http://localhost:8080</span><br>
+  Activate venv first: <span class="code-ref">.venv\Scripts\Activate.ps1</span> (Windows) or <span class="code-ref">source .venv/bin/activate</span> (macOS/Linux)
+</p>
+
+</div>
+</body>
+</html>

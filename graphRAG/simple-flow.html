@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How This Project Works</title>
+<style>
+  body {
+    background: #0f172a;
+    color: #e2e8f0;
+    font-family: system-ui, -apple-system, sans-serif;
+    margin: 0;
+    padding: 40px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  h1 {
+    font-size: 26px;
+    font-weight: 700;
+    color: #f1f5f9;
+    margin-bottom: 8px;
+  }
+  h2 {
+    font-size: 32px;
+    font-weight: 600;
+    color: #60a5fa;
+    margin: 10px 0 20px;
+  }
+  .subtitle {
+    color: #94a3b8;
+    font-size: 16px;
+    margin-bottom: 40px;
+    text-align: center;
+    max-width: 600px;
+    line-height: 1.6;
+  }
+  .flow-container {
+    max-width: 950px;
+    width: 100%;
+  }
+  svg {
+    width: 100%;
+    height: auto;
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+  }
+
+  /* --- Explanation cards --- */
+  .step-list {
+    max-width: 950px;
+    width: 100%;
+    margin: 60px 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .step-card {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    padding: 20px 28px;
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    transition: border-color 0.2s;
+  }
+  .step-card:hover {
+    border-color: #60a5fa;
+  }
+  .step-num {
+    background: #2563eb;
+    color: #fff;
+    font-weight: 700;
+    font-size: 18px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .step-card h3 {
+    margin: 0 0 4px;
+    font-size: 18px;
+    color: #f1f5f9;
+  }
+  .step-card p {
+    margin: 0;
+    color: #94a3b8;
+    line-height: 1.6;
+    font-size: 15px;
+  }
+  .step-card code {
+    background: #0f172a;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #a5b4fc;
+  }
+  .tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 10px;
+    border-radius: 20px;
+    margin-right: 6px;
+  }
+  .tag-blue    { background: #1e3a5f; color: #93c5fd; }
+  .tag-green   { background: #14532d; color: #86efac; }
+  .tag-orange  { background: #5c3c14; color: #fdba74; }
+  .tag-purple  { background: #3b1f5e; color: #c4a5f1; }
+  .tag-red     { background: #5c1a1a; color: #fca5a5; }
+  .tag-teal    { background: #134e4a; color: #5eead4; }
+
+  .step-divider {
+    text-align: center;
+    color: #475569;
+    font-size: 20px;
+    margin: -4px 0;
+  }
+</style>
+</head>
+<body>
+
+<h1>🔍 Knowledge Graph Builder</h1>
+<h2>How It Works</h2>
+<p class="subtitle">
+  You paste any text (story, article, document) → the AI figures out the characters/things and how they're connected → you see a clickable graph + can ask questions about it.
+</p>
+
+<div class="flow-container">
+<svg viewBox="0 0 900 620" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#60a5fa"/></marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#34d399"/></marker>
+    <marker id="arrow-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#fb923c"/></marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#a78bfa"/></marker>
+    <filter id="glow"><feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#2563eb" flood-opacity="0.5"/></filter>
+    <filter id="glow-green"><feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#059669" flood-opacity="0.5"/></filter>
+  </defs>
+
+  <!-- ===== ROW 1: INPUT ===== -->
+  <rect x="350" y="10" width="200" height="54" rx="27" fill="#3b82f6" filter="url(#glow)"/>
+  <text x="450" y="43" text-anchor="middle" fill="#fff" font-size="15" font-weight="600">You paste your text</text>
+
+  <path d="M450,64 L450,100" stroke="#60a5fa" stroke-width="2.5" marker-end="url(#arrow)"/>
+
+  <!-- ===== ROW 2: AUGMENT ===== -->
+  <rect x="350" y="100" width="200" height="50" rx="25" fill="#2563eb"/>
+  <text x="450" y="130" text-anchor="middle" fill="#fff" font-size="14" font-weight="500">Step 1: Enhance text</text>
+  <text x="450" y="144" text-anchor="middle" fill="#93c5fd" font-size="11">(look up entities online)</text>
+
+  <path d="M450,150 L450,190" stroke="#60a5fa" stroke-width="2.5" marker-end="url(#arrow)"/>
+
+  <!-- ===== ROW 3: LLM EXTRACTION ===== -->
+  <rect x="300" y="190" width="300" height="50" rx="8" fill="#059669" filter="url(#glow-green)"/>
+  <text x="450" y="210" text-anchor="middle" fill="#fff" font-size="14" font-weight="600">Step 2: AI reads &amp; extracts</text>
+  <text x="450" y="228" text-anchor="middle" fill="#a7f3d0" font-size="11">LLM finds: Entities ("Harry") + Relationships ("fights Voldemort")</text>
+
+  <path d="M450,240 L450,280" stroke="#34d399" stroke-width="2.5" marker-end="url(#arrow-green)"/>
+
+  <!-- ===== ROW 4: BUILD GRAPH ===== -->
+  <rect x="310" y="280" width="280" height="50" rx="8" fill="#059669"/>
+  <text x="450" y="300" text-anchor="middle" fill="#fff" font-size="14" font-weight="600">Step 3: Build knowledge graph</text>
+  <text x="450" y="318" text-anchor="middle" fill="#a7f3d0" font-size="11">Entities → nodes · Relationships → arrows between them</text>
+
+  <path d="M450,330 L450,370" stroke="#34d399" stroke-width="2.5" marker-end="url(#arrow-green)"/>
+
+  <!-- ===== ROW 5: STORE ===== -->
+  <rect x="275" y="370" width="350" height="60" rx="8" fill="#7c3aed"/>
+  <text x="450" y="392" text-anchor="middle" fill="#fff" font-size="14" font-weight="600">Step 4: Store everything</text>
+  <text x="450" y="412" text-anchor="middle" fill="#ddd6fe" font-size="11">ChromaDB (vector search) + SQLite (workspace DB) + Browser localStorage</text>
+
+  <!-- Split arrow: to display + to Q&A -->
+  <path d="M450,430 L450,465" stroke="#a78bfa" stroke-width="2.5" marker-end="url(#arrow-purple)"/>
+
+  <!-- ===== ROW 6: SHOW ===== -->
+  <rect x="130" y="475" width="240" height="54" rx="27" fill="#d97706"/>
+  <text x="250" y="499" text-anchor="middle" fill="#fff" font-size="14" font-weight="600">🎨 You see the graph</text>
+  <text x="250" y="519" text-anchor="middle" fill="#fed7aa" font-size="11">D3.js interactive visualization</text>
+
+  <!-- ===== ROW 6b: CHAT ===== -->
+  <rect x="530" y="475" width="240" height="54" rx="27" fill="#d97706"/>
+  <text x="650" y="499" text-anchor="middle" fill="#fff" font-size="14" font-weight="600">💬 You ask questions</text>
+  <text x="650" y="519" text-anchor="middle" fill="#fed7aa" font-size="11">"Who is X connected to?" "Summarize"</text>
+
+  <!-- Arrow from store to bottom nodes -->
+  <path d="M380,430 L380,460 L250,460 L250,475" stroke="#a78bfa" stroke-width="2.5" marker-end="url(#arrow-purple)" fill="none"/>
+  <path d="M520,430 L520,460 L650,460 L650,475" stroke="#a78bfa" stroke-width="2.5" marker-end="url(#arrow-purple)" fill="none"/>
+
+  <!-- ===== ROW 7: RAG ===== -->
+  <path d="M250,529 L250,555" stroke="#fb923c" stroke-width="2.5" marker-end="url(#arrow-orange)" fill="none"/>
+  <path d="M650,529 L650,555" stroke="#fb923c" stroke-width="2.5" marker-end="url(#arrow-orange)" fill="none"/>
+
+  <rect x="130" y="555" width="640" height="50" rx="8" fill="#ea580c"/>
+  <text x="450" y="575" text-anchor="middle" fill="#fff" font-size="14" font-weight="600">Step 5: Hybrid RAG — AI searches graph + text chunks to answer you</text>
+  <text x="450" y="593" text-anchor="middle" fill="#fed7aa" font-size="11">Combines: Graph connections (who knows whom) + Vector search (semantic meaning of text)</text>
+</svg>
+</div>
+
+<!-- ===== SIMPLE STEP-BY-STEP ===== -->
+<div class="step-list">
+
+  <div class="step-card">
+    <div class="step-num">1</div>
+    <div>
+      <h3>You paste text <span class="tag tag-blue">Input</span></h3>
+      <p>Paste a story, article, or any text into the sidebar in the browser. Click <strong>"Generate Graph"</strong>. The app also <span class="tag tag-teal">Quick Mode</span> saves graphs in your browser's memory — or <span class="tag tag-purple">Workspace Mode</span> saves them permanently in a database.</p>
+    </div>
+  </div>
+
+  <div class="step-divider">⬇</div>
+
+  <div class="step-card">
+    <div class="step-num">2</div>
+    <div>
+      <h3>AI extracts the "who &amp; what" <span class="tag tag-green">LLM</span></h3>
+      <p>The backend sends your text to an <strong>AI model</strong> (Hugging Face or a local model). It asks the AI: <em>"Find all the entities and their relationships in this text."</em> The AI returns a list of triples like <strong>(Harry) — [fights] — (Voldemort)</strong>.</p>
+      <p style="margin-top:6px">Before extraction, it may <span class="tag tag-orange">SerpAPI</span> search the web to enrich the text with background info on key entities.</p>
+    </div>
+  </div>
+
+  <div class="step-divider">⬇</div>
+
+  <div class="step-card">
+    <div class="step-num">3</div>
+    <div>
+      <h3>Graph is built <span class="tag tag-green">NetworkX</span></h3>
+      <p>Each entity becomes a <strong>node</strong> (circle). Each relationship becomes an <strong>edge</strong> (arrow connecting two circles). The code also figures out <em>communities</em> — groups of related nodes — and gives the whole graph a <strong>title</strong>.</p>
+    </div>
+  </div>
+
+  <div class="step-divider">⬇</div>
+
+  <div class="step-card">
+    <div class="step-num">4</div>
+    <div>
+      <h3>Text is stored for searching <span class="tag tag-blue">ChromaDB</span></h3>
+      <p>Your original text is split into chunks and stored in <strong>ChromaDB</strong> (a vector database). This is what powers the "memory" later — so when you ask a question, the system can find the most relevant paragraphs from the original text.</p>
+    </div>
+  </div>
+
+  <div class="step-divider">⬇</div>
+
+  <div class="step-card">
+    <div class="step-num">5</div>
+    <div>
+      <h3>You see the interactive graph <span class="tag tag-orange">D3.js</span></h3>
+      <p>A beautiful <strong>force-directed graph</strong> appears in your browser. You can <strong>drag</strong> nodes around, <strong>zoom</strong> in/out, <strong>click</strong> any node to see details, <strong>filter</strong> by entity type (people, places, etc.), and <strong>hover</strong> to see relationships. Colors show different communities.</p>
+    </div>
+  </div>
+
+  <div class="step-divider">⬇</div>
+
+  <div class="step-card">
+    <div class="step-num">6</div>
+    <div>
+      <h3>You ask questions &amp; it answers smartly <span class="tag tag-purple">Hybrid RAG</span></h3>
+      <p>Click the chat icon. Ask <em>"What is the relationship between X and Y?"</em> or <em>"Summarize the whole story."</em></p>
+      <p>The answer is built from <strong>two sources</strong> combined:</p>
+      <p>🔷 <strong>Graph Context</strong> — looks at the connections between nodes in the graph<br>
+      📄 <strong>Vector Context</strong> — searches ChromaDB for the most relevant original text paragraphs</p>
+      <p>Both are fed to the AI, which writes you a detailed answer with <strong>follow-up suggestions</strong>.</p>
+    </div>
+  </div>
+
+  <div class="step-divider">⬇</div>
+
+  <div class="step-card" style="border-color:#2563eb; background:#172554;">
+    <div class="step-num" style="background:#f59e0b;">📌</div>
+    <div>
+      <h3>What makes this special?</h3>
+      <p>Most chatbots just search text. This one <strong>also understands the structure</strong> — the connections between things. So when you ask <em>"How is Harry connected to Dumbledore?"</em>, it doesn't just guess from keywords — it traces the actual relationship links in the graph and finds the relevant text paragraphs. That's the <strong>"Graph" in GraphRAG</strong>.</p>
+    </div>
+  </div>
+</div>
+
+<p style="margin-top:50px; color:#475569; font-size:13px; text-align:center;">
+  💡 Run it: <code style="background:#1e293b; padding:2px 10px; border-radius:4px;">cd graphRAG &amp;&amp; python app.py</code> &nbsp;→&nbsp; open <code style="background:#1e293b; padding:2px 10px; border-radius:4px;">http://localhost:8080</code>
+</p>
+
+</body>
+</html>
